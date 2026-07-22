@@ -1,6 +1,6 @@
 # Restaurant Automation
 
-A web operations console for restaurants to coordinate live orders, tables, kitchen load, inventory alerts, and staff handoffs from one screen.
+A web operations console for restaurants to coordinate live orders, tables, kitchen load, inventory alerts, and staff handoffs from one screen. It uses React, Vite, Supabase Auth, and GitHub Pages deployment.
 
 ## Milestones
 
@@ -16,9 +16,11 @@ This project is being built in reviewable milestones. Each milestone should leav
 ## Local Development
 
 ```bash
-npm install
+npm ci
 npm run dev
 ```
+
+See [RUNNING.md](RUNNING.md) for Node.js requirements, Supabase setup, verification commands, deployment configuration, and troubleshooting.
 
 ## Verification
 
@@ -26,4 +28,4 @@ Every push to `main` and pull request targeting `main` runs the CI workflow. It 
 
 ## Deployment
 
-The `Deploy to GitHub Pages` workflow builds and publishes `main` to GitHub Pages. Enable GitHub Pages for the repository with the `GitHub Actions` source, then trigger the workflow from the Actions tab or push to `main`.
+The `Deploy to GitHub Pages` workflow builds and publishes `main` to GitHub Pages with Node.js 24. Enable GitHub Pages for the repository with the `GitHub Actions` source, add the Supabase repository secrets, then trigger the workflow from the Actions tab or push to `main`.
