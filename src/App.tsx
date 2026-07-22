@@ -1,9 +1,11 @@
 import {
   AlertTriangle,
+  ArrowLeft,
   Bell,
   ChefHat,
   Clock3,
   ClipboardCheck,
+  ChevronRight,
   Flame,
   PackageSearch,
   Plus,
@@ -16,6 +18,7 @@ import {
 import { useMemo, useState } from "react";
 
 type OrderStatus = "Preparing" | "Ready" | "Delayed";
+type View = "operations" | "orders";
 
 const stats = [
   { label: "Open orders", value: "28", detail: "+6 in 15 min", icon: ReceiptText },
@@ -83,6 +86,9 @@ function App() {
   const [searchTerm, setSearchTerm] = useState("");
   const [visibleAlerts, setVisibleAlerts] = useState(initialAlerts);
   const [visibleTasks, setVisibleTasks] = useState(initialTasks);
+  const [activeView, setActiveView] = useState<View>("operations");
+  const [statusFilter, setStatusFilter] = useState<OrderStatus | "All">("All");
+  const [selectedOrderId, setSelectedOrderId] = useState(orders[0].id);
 
   const filteredOrders = useMemo(() => {
     const query = searchTerm.trim().toLowerCase();
@@ -98,6 +104,16 @@ function App() {
         .includes(query),
     );
   }, [orderState, searchTerm]);
+
+  const orderDirectory = useMemo(() => {
+    if (statusFilter === "All") {
+      return orderState;
+    }
+
+    return orderState.filter((order) => order.status === statusFilter);
+  }, [orderState, statusFilter]);
+
+  const selectedOrder = orderDirectory.find((order) => order.id === selectedOrderId) ?? orderDirectory[0];
 
   const cycleOrderStatus = (orderId: string) => {
     setOrderState((currentOrders) =>
@@ -125,22 +141,28 @@ function App() {
           <span>Restaurant Automation</span>
         </div>
         <nav>
-          <a className="active" href="#operations">
+          <button
+            className={activeView === "operations" ? "active" : ""}
+            onClick={() => setActiveView("operations")}
+          >
             <ClipboardCheck size={18} aria-hidden="true" />
             Operations
-          </a>
-          <a href="#orders">
+          </button>
+          <button
+            className={activeView === "orders" ? "active" : ""}
+            onClick={() => setActiveView("orders")}
+          >
             <ReceiptText size={18} aria-hidden="true" />
             Orders
-          </a>
-          <a href="#inventory">
+          </button>
+          <button className="disabled-nav" disabled>
             <PackageSearch size={18} aria-hidden="true" />
             Inventory
-          </a>
-          <a href="#alerts">
+          </button>
+          <button className="disabled-nav" disabled>
             <Bell size={18} aria-hidden="true" />
             Alerts
-          </a>
+          </button>
         </nav>
       </aside>
 
@@ -148,7 +170,7 @@ function App() {
         <header className="topbar">
           <div>
             <p className="eyebrow">Dinner service</p>
-            <h1>Live Operations</h1>
+            <h1>{activeView === "operations" ? "Live Operations" : "Orders"}</h1>
           </div>
           <div className="topbar-actions">
             <label className="search-box">
@@ -166,7 +188,7 @@ function App() {
           </div>
         </header>
 
-        <section className="stats-grid" aria-label="Operational summary">
+        {activeView === "operations" && <section className="stats-grid" aria-label="Operational summary">
           {stats.map((stat) => (
             <article className="stat-card" key={stat.label}>
               <stat.icon size={22} aria-hidden="true" />
@@ -177,8 +199,69 @@ function App() {
               </div>
             </article>
           ))}
-        </section>
+        </section>}
 
+        {activeView === "orders" ? (
+          <section className="orders-workspace">
+            <div className="orders-toolbar">
+              <div>
+                <p className="eyebrow">Order intake</p>
+                <h2>All Orders</h2>
+              </div>
+              <label className="filter-control">
+                <span>Status</span>
+                <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as OrderStatus | "All")}>
+                  <option value="All">All statuses</option>
+                  <option value="Preparing">Preparing</option>
+                  <option value="Ready">Ready</option>
+                  <option value="Delayed">Delayed</option>
+                </select>
+              </label>
+            </div>
+            <div className="orders-directory">
+              <section className="panel order-directory-list">
+                {orderDirectory.map((order) => (
+                  <button
+                    className={`directory-row ${selectedOrder?.id === order.id ? "selected" : ""}`}
+                    key={order.id}
+                    onClick={() => setSelectedOrderId(order.id)}
+                  >
+                    <span>
+                      <strong>{order.id}</strong>
+                      <small>{order.table} · {order.channel}</small>
+                    </span>
+                    <span className={`status ${order.status.toLowerCase()}`}>{order.status}</span>
+                    <ChevronRight size={18} aria-hidden="true" />
+                  </button>
+                ))}
+                {orderDirectory.length === 0 && <p className="empty-state">No orders match this status.</p>}
+              </section>
+              {selectedOrder && (
+                <section className="panel order-detail" aria-label={`Details for ${selectedOrder.id}`}>
+                  <div className="panel-heading">
+                    <div>
+                      <p className="eyebrow">Selected order</p>
+                      <h2>{selectedOrder.id}</h2>
+                    </div>
+                    <button className={`status status-button ${selectedOrder.status.toLowerCase()}`} onClick={() => cycleOrderStatus(selectedOrder.id)}>
+                      {selectedOrder.status}
+                    </button>
+                  </div>
+                  <dl className="detail-list">
+                    <div><dt>Service</dt><dd>{selectedOrder.table}</dd></div>
+                    <div><dt>Channel</dt><dd>{selectedOrder.channel}</dd></div>
+                    <div><dt>Items</dt><dd>{selectedOrder.items}</dd></div>
+                    <div><dt>Expected</dt><dd>{selectedOrder.eta}</dd></div>
+                  </dl>
+                  <button className="back-button" onClick={() => setActiveView("operations")}>
+                    <ArrowLeft size={16} aria-hidden="true" />
+                    Back to operations
+                  </button>
+                </section>
+              )}
+            </div>
+          </section>
+        ) : (
         <section className="content-grid">
           <section className="panel orders-panel" id="orders">
             <div className="panel-heading">
@@ -186,7 +269,7 @@ function App() {
                 <p className="eyebrow">Kitchen queue</p>
                 <h2>Active Orders</h2>
               </div>
-              <button className="text-button">View all</button>
+              <button className="text-button" onClick={() => setActiveView("orders")}>View all</button>
             </div>
 
             <div className="order-list">
@@ -274,6 +357,7 @@ function App() {
             </section>
           </aside>
         </section>
+        )}
       </section>
     </main>
   );
