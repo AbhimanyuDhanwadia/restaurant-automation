@@ -277,6 +277,11 @@ h2 {
   gap: 18px;
 }
 
+.alerts-workspace {
+  display: grid;
+  gap: 18px;
+}
+
 .orders-toolbar {
   display: flex;
   align-items: end;
@@ -342,6 +347,39 @@ h2 {
 .staff-roster {
   display: grid;
   gap: 8px;
+}
+
+.alerts-directory {
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(320px, 0.75fr);
+  gap: 18px;
+  align-items: start;
+}
+
+.alert-directory-list {
+  display: grid;
+  gap: 8px;
+}
+
+.severity-high {
+  background: #ffe9df;
+  color: #a43b21;
+}
+
+.severity-medium {
+  background: #fff0c9;
+  color: #795a13;
+}
+
+.severity-low {
+  background: #e8f2ff;
+  color: #17527d;
+}
+
+.alert-detail-copy {
+  margin: 0;
+  color: #46534e;
+  line-height: 1.5;
 }
 
 .staff-side-stack {
@@ -757,7 +795,8 @@ h2 {
   .orders-directory,
   .tables-directory,
   .inventory-directory,
-  .staff-directory {
+  .staff-directory,
+  .alerts-directory {
     grid-template-columns: 1fr 1fr;
   }
 
@@ -787,7 +826,8 @@ h2 {
   .orders-directory,
   .tables-directory,
   .inventory-directory,
-  .staff-directory {
+  .staff-directory,
+  .alerts-directory {
     grid-template-columns: 1fr;
   }
 

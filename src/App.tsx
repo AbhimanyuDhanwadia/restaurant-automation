@@ -22,7 +22,8 @@ type OrderStatus = "Preparing" | "Ready" | "Delayed";
 type TableStatus = "Available" | "Seated" | "Reserved" | "Needs Check";
 type InventoryStatus = "In Stock" | "Low Stock" | "On Order";
 type StaffStatus = "On shift" | "On break" | "Off shift";
-type View = "operations" | "orders" | "tables" | "inventory" | "staff";
+type AlertSeverity = "High" | "Medium" | "Low";
+type View = "operations" | "orders" | "tables" | "inventory" | "staff" | "alerts";
 
 const stats = [
   { label: "Open orders", value: "28", detail: "+6 in 15 min", icon: ReceiptText },
@@ -73,7 +74,7 @@ const orders: Array<{
   },
 ];
 
-const initialAlerts = [
+const initialAlerts: Array<{ label: string; detail: string; severity: AlertSeverity }> = [
   { label: "Romaine lettuce", detail: "Below par by 4 cases", severity: "High" },
   { label: "Dish station", detail: "Needs support before dinner rush", severity: "Medium" },
   { label: "Table 8", detail: "Guest has waited 9 min for check", severity: "Low" },
@@ -187,6 +188,8 @@ function App() {
   const [selectedStaffId, setSelectedStaffId] = useState(initialStaff[0].id);
   const [handoffNote, setHandoffNote] = useStoredState("restaurant-automation:handoff-note", "");
   const [handoffSaved, setHandoffSaved] = useState(false);
+  const [alertFilter, setAlertFilter] = useState<AlertSeverity | "All">("All");
+  const [selectedAlertLabel, setSelectedAlertLabel] = useState(initialAlerts[0].label);
 
   const filteredOrders = useMemo(() => {
     const query = searchTerm.trim().toLowerCase();
@@ -242,6 +245,16 @@ function App() {
   }, [staffFilter, staffState]);
 
   const selectedStaff = staffState.find((staff) => staff.id === selectedStaffId) ?? staffState[0];
+
+  const alertDirectory = useMemo(() => {
+    if (alertFilter === "All") {
+      return visibleAlerts;
+    }
+
+    return visibleAlerts.filter((alert) => alert.severity === alertFilter);
+  }, [alertFilter, visibleAlerts]);
+
+  const selectedAlert = visibleAlerts.find((alert) => alert.label === selectedAlertLabel) ?? visibleAlerts[0];
 
   const cycleOrderStatus = (orderId: string) => {
     setOrderState((currentOrders) =>
@@ -331,7 +344,10 @@ function App() {
             <UsersRound size={18} aria-hidden="true" />
             Staff
           </button>
-          <button className="disabled-nav" disabled>
+          <button
+            className={activeView === "alerts" ? "active" : ""}
+            onClick={() => setActiveView("alerts")}
+          >
             <Bell size={18} aria-hidden="true" />
             Alerts
           </button>
@@ -342,7 +358,7 @@ function App() {
         <header className="topbar">
           <div>
             <p className="eyebrow">Dinner service</p>
-            <h1>{activeView === "operations" ? "Live Operations" : activeView === "orders" ? "Orders" : activeView === "tables" ? "Tables" : activeView === "inventory" ? "Inventory" : "Staff"}</h1>
+            <h1>{activeView === "operations" ? "Live Operations" : activeView === "orders" ? "Orders" : activeView === "tables" ? "Tables" : activeView === "inventory" ? "Inventory" : activeView === "staff" ? "Staff" : "Alerts"}</h1>
           </div>
           <div className="topbar-actions">
             <label className="search-box">
@@ -373,7 +389,60 @@ function App() {
           ))}
         </section>}
 
-        {activeView === "staff" ? (
+        {activeView === "alerts" ? (
+          <section className="alerts-workspace">
+            <div className="orders-toolbar">
+              <div>
+                <p className="eyebrow">Attention queue</p>
+                <h2>Alert Center</h2>
+              </div>
+              <label className="filter-control">
+                <span>Severity</span>
+                <select value={alertFilter} onChange={(event) => setAlertFilter(event.target.value as AlertSeverity | "All")}>
+                  <option value="All">All alerts</option>
+                  <option value="High">High</option>
+                  <option value="Medium">Medium</option>
+                  <option value="Low">Low</option>
+                </select>
+              </label>
+            </div>
+            <div className="alerts-directory">
+              <section className="panel alert-directory-list" aria-label="Active alerts">
+                {alertDirectory.map((alert) => (
+                  <button
+                    className={`directory-row ${selectedAlert?.label === alert.label ? "selected" : ""}`}
+                    key={alert.label}
+                    onClick={() => setSelectedAlertLabel(alert.label)}
+                  >
+                    <span>
+                      <strong>{alert.label}</strong>
+                      <small>{alert.detail}</small>
+                    </span>
+                    <span className={`status severity-${alert.severity.toLowerCase()}`}>{alert.severity}</span>
+                    <ChevronRight size={18} aria-hidden="true" />
+                  </button>
+                ))}
+                {alertDirectory.length === 0 && <p className="empty-state">No alerts match this severity.</p>}
+              </section>
+              {selectedAlert && (
+                <section className="panel order-detail" aria-label={`Details for ${selectedAlert.label}`}>
+                  <div className="panel-heading">
+                    <div>
+                      <p className="eyebrow">Selected alert</p>
+                      <h2>{selectedAlert.label}</h2>
+                    </div>
+                    <span className={`status severity-${selectedAlert.severity.toLowerCase()}`}>{selectedAlert.severity}</span>
+                  </div>
+                  <p className="alert-detail-copy">{selectedAlert.detail}</p>
+                  <button className="back-button" onClick={() => setVisibleAlerts((current) => current.filter((item) => item.label !== selectedAlert.label))}>
+                    <ClipboardCheck size={16} aria-hidden="true" />
+                    Acknowledge alert
+                  </button>
+                </section>
+              )}
+            </div>
+          </section>
+        ) : activeView === "staff" ? (
           <section className="staff-workspace">
             <div className="orders-toolbar">
               <div>
