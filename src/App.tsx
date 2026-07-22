@@ -8,6 +8,7 @@ import {
   ClipboardCheck,
   ChevronRight,
   Flame,
+  LogOut,
   PackageSearch,
   Plus,
   ReceiptText,
@@ -16,7 +17,9 @@ import {
   UsersRound,
   X,
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
+import type { Session } from "@supabase/supabase-js";
+import { isSupabaseConfigured, supabase } from "./lib/supabase";
 
 type OrderStatus = "Preparing" | "Ready" | "Delayed";
 type TableStatus = "Available" | "Seated" | "Reserved" | "Needs Check";
@@ -170,6 +173,12 @@ function useStoredState<T>(key: string, initialValue: T) {
 }
 
 function App() {
+  const [session, setSession] = useState<Session | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
+  const [authSubmitting, setAuthSubmitting] = useState(false);
+  const [authError, setAuthError] = useState("");
+  const [authEmail, setAuthEmail] = useState("");
+  const [authPassword, setAuthPassword] = useState("");
   const [orderState, setOrderState] = useStoredState("restaurant-automation:orders", orders);
   const [searchTerm, setSearchTerm] = useState("");
   const [visibleAlerts, setVisibleAlerts] = useStoredState("restaurant-automation:alerts", initialAlerts);
@@ -190,6 +199,49 @@ function App() {
   const [handoffSaved, setHandoffSaved] = useState(false);
   const [alertFilter, setAlertFilter] = useState<AlertSeverity | "All">("All");
   const [selectedAlertLabel, setSelectedAlertLabel] = useState(initialAlerts[0].label);
+
+  useEffect(() => {
+    if (!supabase) {
+      setAuthLoading(false);
+      return;
+    }
+
+    supabase.auth.getSession().then(({ data }) => {
+      setSession(data.session);
+      setAuthLoading(false);
+    });
+
+    const { data: authListener } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+      setSession(nextSession);
+      setAuthLoading(false);
+    });
+
+    return () => authListener.subscription.unsubscribe();
+  }, []);
+
+  const signIn = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setAuthSubmitting(true);
+    setAuthError("");
+
+    if (!supabase) {
+      setAuthError("Authentication is not configured for this deployment.");
+      setAuthSubmitting(false);
+      return;
+    }
+
+    const { error } = await supabase.auth.signInWithPassword({ email: authEmail, password: authPassword });
+
+    if (error) {
+      setAuthError(error.message);
+    }
+
+    setAuthSubmitting(false);
+  };
+
+  const signOut = async () => {
+    await supabase?.auth.signOut();
+  };
 
   const filteredOrders = useMemo(() => {
     const query = searchTerm.trim().toLowerCase();
@@ -255,6 +307,59 @@ function App() {
   }, [alertFilter, visibleAlerts]);
 
   const selectedAlert = visibleAlerts.find((alert) => alert.label === selectedAlertLabel) ?? visibleAlerts[0];
+
+  if (!isSupabaseConfigured) {
+    return (
+      <main className="error-shell">
+        <section className="error-panel" role="alert">
+          <p className="eyebrow">Authentication setup</p>
+          <h1>Connect Supabase before opening the workspace.</h1>
+          <p>Add the Vite Supabase environment variables to this deployment.</p>
+        </section>
+      </main>
+    );
+  }
+
+  if (authLoading) {
+    return (
+      <main className="error-shell">
+        <section className="error-panel" aria-live="polite">
+          <p className="eyebrow">Restaurant Automation</p>
+          <h1>Restoring your session...</h1>
+        </section>
+      </main>
+    );
+  }
+
+  if (!session) {
+    return (
+      <main className="auth-shell">
+        <section className="auth-panel">
+          <div className="brand auth-brand">
+            <ChefHat size={26} aria-hidden="true" />
+            <span>Restaurant Automation</span>
+          </div>
+          <p className="eyebrow">Team access</p>
+          <h1>Sign in to operations</h1>
+          <p className="auth-copy">Use your restaurant team account to continue.</p>
+          <form className="auth-form" onSubmit={signIn}>
+            <label>
+              Email
+              <input type="email" autoComplete="email" value={authEmail} onChange={(event) => setAuthEmail(event.target.value)} required />
+            </label>
+            <label>
+              Password
+              <input type="password" autoComplete="current-password" value={authPassword} onChange={(event) => setAuthPassword(event.target.value)} required />
+            </label>
+            {authError && <p className="auth-error" role="alert">{authError}</p>}
+            <button className="auth-submit" type="submit" disabled={authSubmitting}>
+              {authSubmitting ? "Signing in..." : "Sign in"}
+            </button>
+          </form>
+        </section>
+      </main>
+    );
+  }
 
   const cycleOrderStatus = (orderId: string) => {
     setOrderState((currentOrders) =>
@@ -372,6 +477,9 @@ function App() {
             </label>
             <button className="icon-button" aria-label="Create action">
               <Plus size={20} aria-hidden="true" />
+            </button>
+            <button className="icon-button" aria-label="Sign out" title={`Sign out ${session.user.email ?? "user"}`} onClick={signOut}>
+              <LogOut size={20} aria-hidden="true" />
             </button>
           </div>
         </header>
