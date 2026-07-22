@@ -23,3 +23,7 @@ npm run dev
 ## Verification
 
 Every push to `main` and pull request targeting `main` runs the CI workflow. It installs the locked dependencies, runs `npm run lint`, and builds the production bundle with `npm run build`.
+
+## Deployment
+
+The `Deploy to GitHub Pages` workflow builds and publishes `main` to GitHub Pages. Enable GitHub Pages for the repository with the `GitHub Actions` source, then trigger the workflow from the Actions tab or push to `main`.
