@@ -19,3 +19,7 @@ This project is being built in reviewable milestones. Each milestone should leav
 npm install
 npm run dev
 ```
+
+## Verification
+
+Every push to `main` and pull request targeting `main` runs the CI workflow. It installs the locked dependencies, runs `npm run lint`, and builds the production bundle with `npm run build`.
