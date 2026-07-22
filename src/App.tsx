@@ -16,7 +16,7 @@ import {
   UsersRound,
   X,
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 type OrderStatus = "Preparing" | "Ready" | "Delayed";
 type TableStatus = "Available" | "Seated" | "Reserved" | "Needs Check";
@@ -132,24 +132,50 @@ const initialStaff: Array<{
   { id: "STAFF-04", name: "Kabir Mehta", role: "Server", station: "Section B", status: "On shift", handoff: "Check in on Table 8 and close the open check." },
 ];
 
+function useStoredState<T>(key: string, initialValue: T) {
+  const [value, setValue] = useState<T>(() => {
+    if (typeof window === "undefined") {
+      return initialValue;
+    }
+
+    const storedValue = window.localStorage.getItem(key);
+
+    if (!storedValue) {
+      return initialValue;
+    }
+
+    try {
+      return JSON.parse(storedValue) as T;
+    } catch {
+      return initialValue;
+    }
+  });
+
+  useEffect(() => {
+    window.localStorage.setItem(key, JSON.stringify(value));
+  }, [key, value]);
+
+  return [value, setValue] as const;
+}
+
 function App() {
-  const [orderState, setOrderState] = useState(orders);
+  const [orderState, setOrderState] = useStoredState("restaurant-automation:orders", orders);
   const [searchTerm, setSearchTerm] = useState("");
-  const [visibleAlerts, setVisibleAlerts] = useState(initialAlerts);
-  const [visibleTasks, setVisibleTasks] = useState(initialTasks);
+  const [visibleAlerts, setVisibleAlerts] = useStoredState("restaurant-automation:alerts", initialAlerts);
+  const [visibleTasks, setVisibleTasks] = useStoredState("restaurant-automation:tasks", initialTasks);
   const [activeView, setActiveView] = useState<View>("operations");
   const [statusFilter, setStatusFilter] = useState<OrderStatus | "All">("All");
   const [selectedOrderId, setSelectedOrderId] = useState(orders[0].id);
-  const [tableState, setTableState] = useState(initialTables);
+  const [tableState, setTableState] = useStoredState("restaurant-automation:tables", initialTables);
   const [tableFilter, setTableFilter] = useState<TableStatus | "All">("All");
   const [selectedTableId, setSelectedTableId] = useState(initialTables[0].id);
-  const [inventoryState, setInventoryState] = useState(initialInventory);
+  const [inventoryState, setInventoryState] = useStoredState("restaurant-automation:inventory", initialInventory);
   const [inventoryFilter, setInventoryFilter] = useState<InventoryStatus | "All">("All");
   const [selectedInventoryId, setSelectedInventoryId] = useState(initialInventory[0].id);
   const [staffState] = useState(initialStaff);
   const [staffFilter, setStaffFilter] = useState<StaffStatus | "All">("All");
   const [selectedStaffId, setSelectedStaffId] = useState(initialStaff[0].id);
-  const [handoffNote, setHandoffNote] = useState("");
+  const [handoffNote, setHandoffNote] = useStoredState("restaurant-automation:handoff-note", "");
   const [handoffSaved, setHandoffSaved] = useState(false);
 
   const filteredOrders = useMemo(() => {
