@@ -2,6 +2,7 @@ import {
   AlertTriangle,
   ArrowLeft,
   Bell,
+  CalendarDays,
   ChefHat,
   Clock3,
   ClipboardCheck,
@@ -18,7 +19,8 @@ import {
 import { useMemo, useState } from "react";
 
 type OrderStatus = "Preparing" | "Ready" | "Delayed";
-type View = "operations" | "orders";
+type TableStatus = "Available" | "Seated" | "Reserved" | "Needs Check";
+type View = "operations" | "orders" | "tables";
 
 const stats = [
   { label: "Open orders", value: "28", detail: "+6 in 15 min", icon: ReceiptText },
@@ -81,6 +83,23 @@ const initialTasks = [
   { title: "Restock bar garnishes", owner: "Bar lead", due: "5:15 PM" },
 ];
 
+const initialTables: Array<{
+  id: string;
+  seats: number;
+  guest: string;
+  reservation: string;
+  status: TableStatus;
+}> = [
+  { id: "T1", seats: 2, guest: "Available", reservation: "Walk-in", status: "Available" },
+  { id: "T2", seats: 4, guest: "The Mehta party", reservation: "6:00 PM", status: "Seated" },
+  { id: "T3", seats: 2, guest: "A. Kapoor", reservation: "6:15 PM", status: "Needs Check" },
+  { id: "T4", seats: 6, guest: "The Shah party", reservation: "6:30 PM", status: "Reserved" },
+  { id: "T5", seats: 4, guest: "Available", reservation: "Walk-in", status: "Available" },
+  { id: "T6", seats: 2, guest: "R. Iyer", reservation: "5:45 PM", status: "Seated" },
+  { id: "T7", seats: 8, guest: "Available", reservation: "Walk-in", status: "Available" },
+  { id: "T8", seats: 4, guest: "N. Rao", reservation: "5:50 PM", status: "Needs Check" },
+];
+
 function App() {
   const [orderState, setOrderState] = useState(orders);
   const [searchTerm, setSearchTerm] = useState("");
@@ -89,6 +108,9 @@ function App() {
   const [activeView, setActiveView] = useState<View>("operations");
   const [statusFilter, setStatusFilter] = useState<OrderStatus | "All">("All");
   const [selectedOrderId, setSelectedOrderId] = useState(orders[0].id);
+  const [tableState, setTableState] = useState(initialTables);
+  const [tableFilter, setTableFilter] = useState<TableStatus | "All">("All");
+  const [selectedTableId, setSelectedTableId] = useState(initialTables[0].id);
 
   const filteredOrders = useMemo(() => {
     const query = searchTerm.trim().toLowerCase();
@@ -115,6 +137,16 @@ function App() {
 
   const selectedOrder = orderDirectory.find((order) => order.id === selectedOrderId) ?? orderDirectory[0];
 
+  const tableDirectory = useMemo(() => {
+    if (tableFilter === "All") {
+      return tableState;
+    }
+
+    return tableState.filter((table) => table.status === tableFilter);
+  }, [tableFilter, tableState]);
+
+  const selectedTable = tableState.find((table) => table.id === selectedTableId) ?? tableState[0];
+
   const cycleOrderStatus = (orderId: string) => {
     setOrderState((currentOrders) =>
       currentOrders.map((order) => {
@@ -129,6 +161,25 @@ function App() {
         };
 
         return { ...order, status: nextStatus[order.status] };
+      }),
+    );
+  };
+
+  const cycleTableStatus = (tableId: string) => {
+    setTableState((currentTables) =>
+      currentTables.map((table) => {
+        if (table.id !== tableId) {
+          return table;
+        }
+
+        const nextStatus: Record<TableStatus, TableStatus> = {
+          Available: "Reserved",
+          Reserved: "Seated",
+          Seated: "Needs Check",
+          "Needs Check": "Available",
+        };
+
+        return { ...table, status: nextStatus[table.status] };
       }),
     );
   };
@@ -155,6 +206,13 @@ function App() {
             <ReceiptText size={18} aria-hidden="true" />
             Orders
           </button>
+          <button
+            className={activeView === "tables" ? "active" : ""}
+            onClick={() => setActiveView("tables")}
+          >
+            <CalendarDays size={18} aria-hidden="true" />
+            Tables
+          </button>
           <button className="disabled-nav" disabled>
             <PackageSearch size={18} aria-hidden="true" />
             Inventory
@@ -170,7 +228,7 @@ function App() {
         <header className="topbar">
           <div>
             <p className="eyebrow">Dinner service</p>
-            <h1>{activeView === "operations" ? "Live Operations" : "Orders"}</h1>
+            <h1>{activeView === "operations" ? "Live Operations" : activeView === "orders" ? "Orders" : "Tables"}</h1>
           </div>
           <div className="topbar-actions">
             <label className="search-box">
@@ -201,7 +259,64 @@ function App() {
           ))}
         </section>}
 
-        {activeView === "orders" ? (
+        {activeView === "tables" ? (
+          <section className="tables-workspace">
+            <div className="orders-toolbar">
+              <div>
+                <p className="eyebrow">Floor plan</p>
+                <h2>Table Status</h2>
+              </div>
+              <label className="filter-control">
+                <span>Status</span>
+                <select value={tableFilter} onChange={(event) => setTableFilter(event.target.value as TableStatus | "All")}>
+                  <option value="All">All tables</option>
+                  <option value="Available">Available</option>
+                  <option value="Seated">Seated</option>
+                  <option value="Reserved">Reserved</option>
+                  <option value="Needs Check">Needs check</option>
+                </select>
+              </label>
+            </div>
+            <div className="tables-directory">
+              <section className="panel table-grid" aria-label="Restaurant table grid">
+                {tableDirectory.map((table) => (
+                  <button
+                    className={`table-tile ${table.status.toLowerCase().replace(" ", "-")} ${selectedTable?.id === table.id ? "selected" : ""}`}
+                    key={table.id}
+                    onClick={() => setSelectedTableId(table.id)}
+                  >
+                    <strong>{table.id}</strong>
+                    <span>{table.seats} seats</span>
+                    <small>{table.status}</small>
+                  </button>
+                ))}
+                {tableDirectory.length === 0 && <p className="empty-state">No tables match this status.</p>}
+              </section>
+              {selectedTable && (
+                <section className="panel order-detail" aria-label={`Details for ${selectedTable.id}`}>
+                  <div className="panel-heading">
+                    <div>
+                      <p className="eyebrow">Selected table</p>
+                      <h2>{selectedTable.id}</h2>
+                    </div>
+                    <button className={`status status-button table-status-${selectedTable.status.toLowerCase().replace(" ", "-")}`} onClick={() => cycleTableStatus(selectedTable.id)}>
+                      {selectedTable.status}
+                    </button>
+                  </div>
+                  <dl className="detail-list">
+                    <div><dt>Capacity</dt><dd>{selectedTable.seats} guests</dd></div>
+                    <div><dt>Guest</dt><dd>{selectedTable.guest}</dd></div>
+                    <div><dt>Reservation</dt><dd>{selectedTable.reservation}</dd></div>
+                  </dl>
+                  <button className="back-button" onClick={() => setActiveView("operations")}>
+                    <ArrowLeft size={16} aria-hidden="true" />
+                    Back to operations
+                  </button>
+                </section>
+              )}
+            </div>
+          </section>
+        ) : activeView === "orders" ? (
           <section className="orders-workspace">
             <div className="orders-toolbar">
               <div>
