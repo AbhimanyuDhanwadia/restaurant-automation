@@ -253,6 +253,24 @@ h2 {
   font-weight: 800;
 }
 
+.status-button,
+.dismiss-button,
+.task-complete {
+  border: 0;
+  cursor: pointer;
+  font-weight: 800;
+}
+
+.status-button {
+  font: inherit;
+}
+
+.status-button:hover,
+.status-button:focus-visible {
+  outline: 2px solid #19332c;
+  outline-offset: 2px;
+}
+
 .status.preparing {
   background: #e8f2ff;
   color: #17527d;
@@ -294,10 +312,45 @@ h2 {
   font-weight: 800;
 }
 
+.dismiss-button {
+  display: grid;
+  width: 30px;
+  height: 30px;
+  flex: 0 0 30px;
+  place-items: center;
+  border-radius: 8px;
+  background: transparent;
+  color: #65716d;
+}
+
+.dismiss-button:hover,
+.dismiss-button:focus-visible {
+  background: #f3eee5;
+  color: #19332c;
+}
+
 .task-row time {
   color: #b8472b;
   font-weight: 800;
   white-space: nowrap;
+}
+
+.task-complete {
+  padding: 7px 10px;
+  border-radius: 8px;
+  background: #edf0e7;
+  color: #26352f;
+}
+
+.task-complete:hover,
+.task-complete:focus-visible {
+  background: #dce8d8;
+}
+
+.empty-state {
+  margin: 0;
+  padding: 16px 0 4px;
+  color: #65716d;
 }
 
 @media (max-width: 1040px) {

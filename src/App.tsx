@@ -11,7 +11,9 @@ import {
   Search,
   TableProperties,
   UsersRound,
+  X,
 } from "lucide-react";
+import { useMemo, useState } from "react";
 
 type OrderStatus = "Preparing" | "Ready" | "Delayed";
 
@@ -64,19 +66,57 @@ const orders: Array<{
   },
 ];
 
-const alerts = [
+const initialAlerts = [
   { label: "Romaine lettuce", detail: "Below par by 4 cases", severity: "High" },
   { label: "Dish station", detail: "Needs support before dinner rush", severity: "Medium" },
   { label: "Table 8", detail: "Guest has waited 9 min for check", severity: "Low" },
 ];
 
-const tasks = [
+const initialTasks = [
   { title: "Approve prep list", owner: "Sous chef", due: "4:30 PM" },
   { title: "Confirm delivery partner SLA", owner: "Manager", due: "5:00 PM" },
   { title: "Restock bar garnishes", owner: "Bar lead", due: "5:15 PM" },
 ];
 
 function App() {
+  const [orderState, setOrderState] = useState(orders);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [visibleAlerts, setVisibleAlerts] = useState(initialAlerts);
+  const [visibleTasks, setVisibleTasks] = useState(initialTasks);
+
+  const filteredOrders = useMemo(() => {
+    const query = searchTerm.trim().toLowerCase();
+
+    if (!query) {
+      return orderState;
+    }
+
+    return orderState.filter((order) =>
+      [order.id, order.table, order.channel, order.items, order.status]
+        .join(" ")
+        .toLowerCase()
+        .includes(query),
+    );
+  }, [orderState, searchTerm]);
+
+  const cycleOrderStatus = (orderId: string) => {
+    setOrderState((currentOrders) =>
+      currentOrders.map((order) => {
+        if (order.id !== orderId) {
+          return order;
+        }
+
+        const nextStatus: Record<OrderStatus, OrderStatus> = {
+          Preparing: "Ready",
+          Ready: "Delayed",
+          Delayed: "Preparing",
+        };
+
+        return { ...order, status: nextStatus[order.status] };
+      }),
+    );
+  };
+
   return (
     <main className="app-shell">
       <aside className="sidebar" aria-label="Primary navigation">
@@ -113,7 +153,12 @@ function App() {
           <div className="topbar-actions">
             <label className="search-box">
               <Search size={17} aria-hidden="true" />
-              <input aria-label="Search operations" placeholder="Search orders, tables, items" />
+              <input
+                aria-label="Search operations"
+                placeholder="Search orders, tables, items"
+                value={searchTerm}
+                onChange={(event) => setSearchTerm(event.target.value)}
+              />
             </label>
             <button className="icon-button" aria-label="Create action">
               <Plus size={20} aria-hidden="true" />
@@ -145,7 +190,7 @@ function App() {
             </div>
 
             <div className="order-list">
-              {orders.map((order) => (
+              {filteredOrders.map((order) => (
                 <article className="order-row" key={order.id}>
                   <div>
                     <strong>{order.id}</strong>
@@ -156,11 +201,18 @@ function App() {
                     <Clock3 size={16} aria-hidden="true" />
                     {order.eta}
                   </span>
-                  <span className={`status ${order.status.toLowerCase()}`}>
+                  <button
+                    className={`status status-button ${order.status.toLowerCase()}`}
+                    onClick={() => cycleOrderStatus(order.id)}
+                    title={`Advance ${order.id} status`}
+                  >
                     {order.status}
-                  </span>
+                  </button>
                 </article>
               ))}
+              {filteredOrders.length === 0 && (
+                <p className="empty-state">No orders match “{searchTerm}”.</p>
+              )}
             </div>
           </section>
 
@@ -174,15 +226,23 @@ function App() {
                 <AlertTriangle size={20} aria-hidden="true" />
               </div>
               <div className="alert-list">
-                {alerts.map((alert) => (
+                {visibleAlerts.map((alert) => (
                   <article className="alert-row" key={alert.label}>
                     <div>
                       <strong>{alert.label}</strong>
                       <span>{alert.detail}</span>
                     </div>
                     <small>{alert.severity}</small>
+                    <button
+                      className="dismiss-button"
+                      aria-label={`Dismiss ${alert.label} alert`}
+                      onClick={() => setVisibleAlerts((current) => current.filter((item) => item.label !== alert.label))}
+                    >
+                      <X size={16} aria-hidden="true" />
+                    </button>
                   </article>
                 ))}
+                {visibleAlerts.length === 0 && <p className="empty-state">All alerts are cleared.</p>}
               </div>
             </section>
 
@@ -194,15 +254,22 @@ function App() {
                 </div>
               </div>
               <div className="task-list">
-                {tasks.map((task) => (
+                {visibleTasks.map((task) => (
                   <article className="task-row" key={task.title}>
                     <div>
                       <strong>{task.title}</strong>
                       <span>{task.owner}</span>
                     </div>
                     <time>{task.due}</time>
+                    <button
+                      className="task-complete"
+                      onClick={() => setVisibleTasks((current) => current.filter((item) => item.title !== task.title))}
+                    >
+                      Done
+                    </button>
                   </article>
                 ))}
+                {visibleTasks.length === 0 && <p className="empty-state">No pending tasks.</p>}
               </div>
             </section>
           </aside>
