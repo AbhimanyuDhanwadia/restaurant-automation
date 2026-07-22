@@ -244,6 +244,11 @@ h2 {
   gap: 18px;
 }
 
+.staff-workspace {
+  display: grid;
+  gap: 18px;
+}
+
 .orders-toolbar {
   display: flex;
   align-items: end;
@@ -297,6 +302,81 @@ h2 {
 .inventory-list {
   display: grid;
   gap: 8px;
+}
+
+.staff-directory {
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(320px, 0.75fr);
+  gap: 18px;
+  align-items: start;
+}
+
+.staff-roster {
+  display: grid;
+  gap: 8px;
+}
+
+.staff-side-stack {
+  display: grid;
+  gap: 18px;
+}
+
+.staff-detail,
+.handoff-panel {
+  min-width: 0;
+}
+
+.staff-status-on-shift {
+  background: #e5f6ea;
+  color: #1f6b36;
+}
+
+.staff-status-on-break {
+  background: #fff0c9;
+  color: #795a13;
+}
+
+.staff-status-off-shift {
+  background: #edf0e7;
+  color: #65716d;
+}
+
+.handoff-label {
+  margin-top: 20px;
+}
+
+.handoff-copy {
+  margin: 0;
+  color: #46534e;
+  line-height: 1.5;
+}
+
+.handoff-panel textarea {
+  display: block;
+  width: 100%;
+  min-height: 100px;
+  resize: vertical;
+  padding: 12px;
+  border: 1px solid #d9d4ca;
+  border-radius: 8px;
+  color: #19211d;
+  line-height: 1.5;
+}
+
+.handoff-panel textarea:focus {
+  outline: 2px solid #b8472b;
+  outline-offset: 1px;
+}
+
+.saved-label,
+.task-count {
+  color: #1f6b36;
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+.staff-task-panel {
+  width: 100%;
 }
 
 .table-grid {
@@ -648,7 +728,8 @@ h2 {
   .content-grid,
   .orders-directory,
   .tables-directory,
-  .inventory-directory {
+  .inventory-directory,
+  .staff-directory {
     grid-template-columns: 1fr 1fr;
   }
 
@@ -677,7 +758,8 @@ h2 {
   .content-grid,
   .orders-directory,
   .tables-directory,
-  .inventory-directory {
+  .inventory-directory,
+  .staff-directory {
     grid-template-columns: 1fr;
   }
 
@@ -701,6 +783,10 @@ h2 {
 
   .order-detail {
     position: static;
+  }
+
+  .staff-directory {
+    grid-template-columns: 1fr;
   }
 
   .table-grid {

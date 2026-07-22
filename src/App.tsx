@@ -21,7 +21,8 @@ import { useMemo, useState } from "react";
 type OrderStatus = "Preparing" | "Ready" | "Delayed";
 type TableStatus = "Available" | "Seated" | "Reserved" | "Needs Check";
 type InventoryStatus = "In Stock" | "Low Stock" | "On Order";
-type View = "operations" | "orders" | "tables" | "inventory";
+type StaffStatus = "On shift" | "On break" | "Off shift";
+type View = "operations" | "orders" | "tables" | "inventory" | "staff";
 
 const stats = [
   { label: "Open orders", value: "28", detail: "+6 in 15 min", icon: ReceiptText },
@@ -117,6 +118,20 @@ const initialInventory: Array<{
   { id: "INV-05", item: "Sourdough loaves", category: "Bakery", onHand: "14 loaves", par: "12 loaves", supplier: "Daily Crumb", status: "In Stock" },
 ];
 
+const initialStaff: Array<{
+  id: string;
+  name: string;
+  role: string;
+  station: string;
+  status: StaffStatus;
+  handoff: string;
+}> = [
+  { id: "STAFF-01", name: "Maya Patel", role: "Manager", station: "Front of house", status: "On shift", handoff: "Confirm the delivery partner SLA before 5:00 PM." },
+  { id: "STAFF-02", name: "Arjun Shah", role: "Sous chef", station: "Hot line", status: "On shift", handoff: "Approve the prep list and watch grill capacity." },
+  { id: "STAFF-03", name: "Nisha Rao", role: "Bar lead", station: "Bar", status: "On break", handoff: "Restock bar garnishes before the dinner rush." },
+  { id: "STAFF-04", name: "Kabir Mehta", role: "Server", station: "Section B", status: "On shift", handoff: "Check in on Table 8 and close the open check." },
+];
+
 function App() {
   const [orderState, setOrderState] = useState(orders);
   const [searchTerm, setSearchTerm] = useState("");
@@ -131,6 +146,11 @@ function App() {
   const [inventoryState, setInventoryState] = useState(initialInventory);
   const [inventoryFilter, setInventoryFilter] = useState<InventoryStatus | "All">("All");
   const [selectedInventoryId, setSelectedInventoryId] = useState(initialInventory[0].id);
+  const [staffState] = useState(initialStaff);
+  const [staffFilter, setStaffFilter] = useState<StaffStatus | "All">("All");
+  const [selectedStaffId, setSelectedStaffId] = useState(initialStaff[0].id);
+  const [handoffNote, setHandoffNote] = useState("");
+  const [handoffSaved, setHandoffSaved] = useState(false);
 
   const filteredOrders = useMemo(() => {
     const query = searchTerm.trim().toLowerCase();
@@ -176,6 +196,16 @@ function App() {
   }, [inventoryFilter, inventoryState]);
 
   const selectedInventory = inventoryState.find((inventory) => inventory.id === selectedInventoryId) ?? inventoryState[0];
+
+  const staffDirectory = useMemo(() => {
+    if (staffFilter === "All") {
+      return staffState;
+    }
+
+    return staffState.filter((staff) => staff.status === staffFilter);
+  }, [staffFilter, staffState]);
+
+  const selectedStaff = staffState.find((staff) => staff.id === selectedStaffId) ?? staffState[0];
 
   const cycleOrderStatus = (orderId: string) => {
     setOrderState((currentOrders) =>
@@ -258,6 +288,13 @@ function App() {
             <PackageSearch size={18} aria-hidden="true" />
             Inventory
           </button>
+          <button
+            className={activeView === "staff" ? "active" : ""}
+            onClick={() => setActiveView("staff")}
+          >
+            <UsersRound size={18} aria-hidden="true" />
+            Staff
+          </button>
           <button className="disabled-nav" disabled>
             <Bell size={18} aria-hidden="true" />
             Alerts
@@ -269,7 +306,7 @@ function App() {
         <header className="topbar">
           <div>
             <p className="eyebrow">Dinner service</p>
-            <h1>{activeView === "operations" ? "Live Operations" : activeView === "orders" ? "Orders" : activeView === "tables" ? "Tables" : "Inventory"}</h1>
+            <h1>{activeView === "operations" ? "Live Operations" : activeView === "orders" ? "Orders" : activeView === "tables" ? "Tables" : activeView === "inventory" ? "Inventory" : "Staff"}</h1>
           </div>
           <div className="topbar-actions">
             <label className="search-box">
@@ -300,7 +337,99 @@ function App() {
           ))}
         </section>}
 
-        {activeView === "inventory" ? (
+        {activeView === "staff" ? (
+          <section className="staff-workspace">
+            <div className="orders-toolbar">
+              <div>
+                <p className="eyebrow">Shift handoff</p>
+                <h2>Staff & Tasks</h2>
+              </div>
+              <label className="filter-control">
+                <span>Availability</span>
+                <select value={staffFilter} onChange={(event) => setStaffFilter(event.target.value as StaffStatus | "All")}>
+                  <option value="All">Everyone</option>
+                  <option value="On shift">On shift</option>
+                  <option value="On break">On break</option>
+                  <option value="Off shift">Off shift</option>
+                </select>
+              </label>
+            </div>
+            <div className="staff-directory">
+              <section className="panel staff-roster" aria-label="Staff roster">
+                {staffDirectory.map((staff) => (
+                  <button
+                    className={`directory-row ${selectedStaff?.id === staff.id ? "selected" : ""}`}
+                    key={staff.id}
+                    onClick={() => setSelectedStaffId(staff.id)}
+                  >
+                    <span>
+                      <strong>{staff.name}</strong>
+                      <small>{staff.role} · {staff.station}</small>
+                    </span>
+                    <span className={`status staff-status-${staff.status.toLowerCase().replace(" ", "-")}`}>{staff.status}</span>
+                    <ChevronRight size={18} aria-hidden="true" />
+                  </button>
+                ))}
+                {staffDirectory.length === 0 && <p className="empty-state">No staff match this availability.</p>}
+              </section>
+              <div className="staff-side-stack">
+                {selectedStaff && (
+                  <section className="panel staff-detail" aria-label={`Handoff for ${selectedStaff.name}`}>
+                    <div className="panel-heading">
+                      <div>
+                        <p className="eyebrow">Selected staff member</p>
+                        <h2>{selectedStaff.name}</h2>
+                      </div>
+                      <span className={`status staff-status-${selectedStaff.status.toLowerCase().replace(" ", "-")}`}>{selectedStaff.status}</span>
+                    </div>
+                    <dl className="detail-list">
+                      <div><dt>Role</dt><dd>{selectedStaff.role}</dd></div>
+                      <div><dt>Station</dt><dd>{selectedStaff.station}</dd></div>
+                    </dl>
+                    <p className="eyebrow handoff-label">Handoff note</p>
+                    <p className="handoff-copy">{selectedStaff.handoff}</p>
+                  </section>
+                )}
+                <section className="panel handoff-panel" aria-label="Shift handoff note">
+                  <div className="panel-heading">
+                    <div>
+                      <p className="eyebrow">Manager note</p>
+                      <h2>Pass to next shift</h2>
+                    </div>
+                    {handoffSaved && <span className="saved-label">Saved</span>}
+                  </div>
+                  <textarea aria-label="Shift handoff note" placeholder="Add a note for the next shift" value={handoffNote} onChange={(event) => { setHandoffNote(event.target.value); setHandoffSaved(false); }} />
+                  <button className="back-button" onClick={() => setHandoffSaved(true)} disabled={!handoffNote.trim()}>
+                    <ClipboardCheck size={16} aria-hidden="true" />
+                    Save handoff
+                  </button>
+                </section>
+              </div>
+            </div>
+            <section className="panel staff-task-panel" aria-label="Open shift tasks">
+              <div className="panel-heading">
+                <div>
+                  <p className="eyebrow">Automation queue</p>
+                  <h2>Open shift tasks</h2>
+                </div>
+                <span className="task-count">{visibleTasks.length} open</span>
+              </div>
+              <div className="task-list">
+                {visibleTasks.map((task) => (
+                  <article className="task-row" key={task.title}>
+                    <div>
+                      <strong>{task.title}</strong>
+                      <span>{task.owner}</span>
+                    </div>
+                    <time>{task.due}</time>
+                    <button className="task-complete" onClick={() => setVisibleTasks((current) => current.filter((item) => item.title !== task.title))}>Done</button>
+                  </article>
+                ))}
+                {visibleTasks.length === 0 && <p className="empty-state">All shift tasks are complete.</p>}
+              </div>
+            </section>
+          </section>
+        ) : activeView === "inventory" ? (
           <section className="inventory-workspace">
             <div className="orders-toolbar">
               <div>
