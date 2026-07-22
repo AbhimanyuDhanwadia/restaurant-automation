@@ -1,0 +1,114 @@
+// Package config loads and validates all application configuration from
+// environment variables and optional .env files using Viper.
+//
+// Configuration is loaded once at startup and injected via dependency
+// injection — no global state, no direct os.Getenv() calls in business logic.
+package config
+
+import (
+	"fmt"
+	"strings"
+	"time"
+
+	"github.com/spf13/viper"
+)
+
+// Config is the top-level configuration struct for the server.
+// All fields are loaded from environment variables (or a .env file).
+// Viper maps ENV_VAR_NAME → struct field via mapstructure tags.
+type Config struct {
+	Server   ServerConfig
+	Database DatabaseConfig
+	Auth     AuthConfig
+	Log      LogConfig
+}
+
+// ServerConfig holds HTTP server tuning parameters.
+type ServerConfig struct {
+	// Port the HTTP server listens on. Default: 8080.
+	Port int `mapstructure:"PORT"`
+	// ShutdownTimeout is the maximum time allowed for in-flight requests to
+	// complete during graceful shutdown. Default: 30s.
+	ShutdownTimeout time.Duration `mapstructure:"SHUTDOWN_TIMEOUT"`
+	// CORSOrigins is a comma-separated list of allowed CORS origins.
+	// Use "*" only in development.
+	CORSOrigins []string `mapstructure:"CORS_ORIGINS"`
+}
+
+// DatabaseConfig holds PostgreSQL connection parameters.
+type DatabaseConfig struct {
+	// DSN is the full PostgreSQL connection string.
+	// Example: postgres://user:pass@localhost:5432/restaurant?sslmode=disable
+	DSN string `mapstructure:"DATABASE_URL"`
+	// MaxConns is the maximum number of pool connections. Default: 25.
+	MaxConns int32 `mapstructure:"DB_MAX_CONNS"`
+	// MinConns is the minimum number of pool connections. Default: 5.
+	MinConns int32 `mapstructure:"DB_MIN_CONNS"`
+}
+
+// AuthConfig holds authentication parameters.
+type AuthConfig struct {
+	// SupabaseJWTSecret is used to verify Supabase-issued JWTs server-side.
+	// Set this to the JWT secret from your Supabase project settings.
+	SupabaseJWTSecret string `mapstructure:"SUPABASE_JWT_SECRET"`
+}
+
+// LogConfig controls the zerolog output format.
+type LogConfig struct {
+	// Level sets the minimum log level. One of: trace, debug, info, warn, error.
+	// Default: info.
+	Level string `mapstructure:"LOG_LEVEL"`
+	// Pretty enables human-readable output in development. Set to false in prod.
+	Pretty bool `mapstructure:"LOG_PRETTY"`
+}
+
+// Load reads configuration from environment variables and, if present, from a
+// .env file in the working directory. Environment variables take precedence
+// over .env file values. Returns an error if required values are missing or
+// the config cannot be parsed.
+func Load() (*Config, error) {
+	v := viper.New()
+
+	// --- Defaults ---
+	v.SetDefault("PORT", 8080)
+	v.SetDefault("SHUTDOWN_TIMEOUT", "30s")
+	v.SetDefault("CORS_ORIGINS", "http://localhost:5173,http://localhost:5174")
+	v.SetDefault("DB_MAX_CONNS", 25)
+	v.SetDefault("DB_MIN_CONNS", 5)
+	v.SetDefault("LOG_LEVEL", "info")
+	v.SetDefault("LOG_PRETTY", false)
+
+	// --- .env file (optional, ignored if absent) ---
+	v.SetConfigName(".env")
+	v.SetConfigType("env")
+	v.AddConfigPath(".")
+	_ = v.ReadInConfig() // intentionally ignore "not found" errors
+
+	// --- Environment variables ---
+	v.AutomaticEnv()
+	v.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
+
+	var cfg Config
+	if err := v.Unmarshal(&cfg); err != nil {
+		return nil, fmt.Errorf("config: unmarshal failed: %w", err)
+	}
+
+	// Parse CORS_ORIGINS from comma-separated string if needed.
+	if raw := v.GetString("CORS_ORIGINS"); raw != "" {
+		cfg.Server.CORSOrigins = splitTrimmed(raw, ",")
+	}
+
+	return &cfg, nil
+}
+
+// splitTrimmed splits s by sep and trims whitespace from each element.
+func splitTrimmed(s, sep string) []string {
+	parts := strings.Split(s, sep)
+	out := make([]string, 0, len(parts))
+	for _, p := range parts {
+		if t := strings.TrimSpace(p); t != "" {
+			out = append(out, t)
+		}
+	}
+	return out
+}
