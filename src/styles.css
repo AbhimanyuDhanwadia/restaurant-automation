@@ -18,6 +18,34 @@ body {
   min-height: 100vh;
 }
 
+.error-shell {
+  display: grid;
+  min-height: 100vh;
+  place-items: center;
+  padding: 24px;
+  background: #f5f2ec;
+}
+
+.error-panel {
+  width: min(520px, 100%);
+  padding: 28px;
+  border: 1px solid #dfd8cb;
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: 0 18px 50px rgba(28, 33, 30, 0.06);
+}
+
+.error-panel h1 {
+  margin: 8px 0 12px;
+  font-size: 1.65rem;
+  line-height: 1.15;
+}
+
+.error-panel p:not(.eyebrow) {
+  margin: 0 0 18px;
+  color: #65716d;
+}
+
 button,
 input {
   font: inherit;

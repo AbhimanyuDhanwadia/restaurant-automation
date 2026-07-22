@@ -138,7 +138,13 @@ function useStoredState<T>(key: string, initialValue: T) {
       return initialValue;
     }
 
-    const storedValue = window.localStorage.getItem(key);
+    let storedValue: string | null = null;
+
+    try {
+      storedValue = window.localStorage.getItem(key);
+    } catch {
+      return initialValue;
+    }
 
     if (!storedValue) {
       return initialValue;
@@ -152,7 +158,11 @@ function useStoredState<T>(key: string, initialValue: T) {
   });
 
   useEffect(() => {
-    window.localStorage.setItem(key, JSON.stringify(value));
+    try {
+      window.localStorage.setItem(key, JSON.stringify(value));
+    } catch {
+      // Continue in memory when browser storage is unavailable.
+    }
   }, [key, value]);
 
   return [value, setValue] as const;
