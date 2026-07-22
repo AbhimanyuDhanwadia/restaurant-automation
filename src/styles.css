@@ -280,6 +280,52 @@ h2 {
   color: #ffffff;
 }
 
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 5;
+  display: grid;
+  place-items: start center;
+  padding: 96px 18px 24px;
+  background: rgba(25, 51, 44, 0.32);
+}
+
+.modal-panel {
+  width: min(420px, 100%);
+  padding: 18px;
+  border: 1px solid #dfd8cb;
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: 0 24px 70px rgba(28, 33, 30, 0.22);
+}
+
+.create-action-list {
+  display: grid;
+  gap: 8px;
+}
+
+.create-action {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 46px;
+  padding: 0 12px;
+  border: 1px solid #ece7df;
+  border-radius: 8px;
+  background: #fbfaf7;
+  color: #19211d;
+  cursor: pointer;
+  font-weight: 800;
+  text-align: left;
+}
+
+.create-action:hover,
+.create-action:focus-visible {
+  border-color: #b8472b;
+  background: #fff8f3;
+  outline: 0;
+}
+
 .text-button {
   padding: 0 14px;
   background: #edf0e7;

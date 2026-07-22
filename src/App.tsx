@@ -172,6 +172,8 @@ function useStoredState<T>(key: string, initialValue: T) {
   return [value, setValue] as const;
 }
 
+const toClassName = (value: string) => value.toLowerCase().replace(/\s+/g, "-");
+
 function App() {
   const [session, setSession] = useState<Session | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
@@ -192,13 +194,14 @@ function App() {
   const [inventoryState, setInventoryState] = useStoredState("restaurant-automation:inventory", initialInventory);
   const [inventoryFilter, setInventoryFilter] = useState<InventoryStatus | "All">("All");
   const [selectedInventoryId, setSelectedInventoryId] = useState(initialInventory[0].id);
-  const [staffState] = useState(initialStaff);
+  const [staffState] = useStoredState("restaurant-automation:staff", initialStaff);
   const [staffFilter, setStaffFilter] = useState<StaffStatus | "All">("All");
   const [selectedStaffId, setSelectedStaffId] = useState(initialStaff[0].id);
   const [handoffNote, setHandoffNote] = useStoredState("restaurant-automation:handoff-note", "");
   const [handoffSaved, setHandoffSaved] = useState(false);
   const [alertFilter, setAlertFilter] = useState<AlertSeverity | "All">("All");
   const [selectedAlertLabel, setSelectedAlertLabel] = useState(initialAlerts[0].label);
+  const [createOpen, setCreateOpen] = useState(false);
 
   useEffect(() => {
     if (!supabase) {
@@ -276,7 +279,7 @@ function App() {
     return tableState.filter((table) => table.status === tableFilter);
   }, [tableFilter, tableState]);
 
-  const selectedTable = tableState.find((table) => table.id === selectedTableId) ?? tableState[0];
+  const selectedTable = tableDirectory.find((table) => table.id === selectedTableId) ?? tableDirectory[0];
 
   const inventoryDirectory = useMemo(() => {
     if (inventoryFilter === "All") {
@@ -286,7 +289,7 @@ function App() {
     return inventoryState.filter((inventory) => inventory.status === inventoryFilter);
   }, [inventoryFilter, inventoryState]);
 
-  const selectedInventory = inventoryState.find((inventory) => inventory.id === selectedInventoryId) ?? inventoryState[0];
+  const selectedInventory = inventoryDirectory.find((inventory) => inventory.id === selectedInventoryId) ?? inventoryDirectory[0];
 
   const staffDirectory = useMemo(() => {
     if (staffFilter === "All") {
@@ -296,7 +299,7 @@ function App() {
     return staffState.filter((staff) => staff.status === staffFilter);
   }, [staffFilter, staffState]);
 
-  const selectedStaff = staffState.find((staff) => staff.id === selectedStaffId) ?? staffState[0];
+  const selectedStaff = staffDirectory.find((staff) => staff.id === selectedStaffId) ?? staffDirectory[0];
 
   const alertDirectory = useMemo(() => {
     if (alertFilter === "All") {
@@ -306,7 +309,13 @@ function App() {
     return visibleAlerts.filter((alert) => alert.severity === alertFilter);
   }, [alertFilter, visibleAlerts]);
 
-  const selectedAlert = visibleAlerts.find((alert) => alert.label === selectedAlertLabel) ?? visibleAlerts[0];
+  const selectedAlert = alertDirectory.find((alert) => alert.label === selectedAlertLabel) ?? alertDirectory[0];
+
+  useEffect(() => {
+    if (!visibleAlerts.some((alert) => alert.label === selectedAlertLabel)) {
+      setSelectedAlertLabel(visibleAlerts[0]?.label ?? "");
+    }
+  }, [selectedAlertLabel, visibleAlerts]);
 
   if (!isSupabaseConfigured) {
     return (
@@ -370,7 +379,7 @@ function App() {
 
         const nextStatus: Record<OrderStatus, OrderStatus> = {
           Preparing: "Ready",
-          Ready: "Delayed",
+          Ready: "Preparing",
           Delayed: "Preparing",
         };
 
@@ -404,6 +413,42 @@ function App() {
         inventory.id === inventoryId ? { ...inventory, status: "In Stock" } : inventory,
       ),
     );
+  };
+
+  const acknowledgeAlert = (alertLabel: string) => {
+    setVisibleAlerts((currentAlerts) => currentAlerts.filter((alert) => alert.label !== alertLabel));
+    setSelectedAlertLabel((currentLabel) => currentLabel === alertLabel ? "" : currentLabel);
+  };
+
+  const createQuickAction = (type: "order" | "table" | "inventory") => {
+    if (type === "order") {
+      const nextOrderNumber = 1842 + orderState.length;
+      setOrderState((currentOrders) => [
+        ...currentOrders,
+        { id: `ORD-${nextOrderNumber}`, table: "New table", channel: "Web", items: "New order", eta: "15 min", status: "Preparing" },
+      ]);
+      setActiveView("orders");
+    }
+
+    if (type === "table") {
+      const nextTableNumber = tableState.length + 1;
+      setTableState((currentTables) => [
+        ...currentTables,
+        { id: `T${nextTableNumber}`, seats: 2, guest: "Available", reservation: "Walk-in", status: "Available" },
+      ]);
+      setActiveView("tables");
+    }
+
+    if (type === "inventory") {
+      const nextInventoryNumber = inventoryState.length + 1;
+      setInventoryState((currentInventory) => [
+        ...currentInventory,
+        { id: `INV-${String(nextInventoryNumber).padStart(2, "0")}`, item: "New inventory item", category: "Uncategorized", onHand: "0 units", par: "0 units", supplier: "Unassigned", status: "Low Stock" },
+      ]);
+      setActiveView("inventory");
+    }
+
+    setCreateOpen(false);
   };
 
   return (
@@ -475,7 +520,7 @@ function App() {
                 onChange={(event) => setSearchTerm(event.target.value)}
               />
             </label>
-            <button className="icon-button" aria-label="Create action">
+            <button className="icon-button" aria-label="Create action" onClick={() => setCreateOpen(true)}>
               <Plus size={20} aria-hidden="true" />
             </button>
             <button className="icon-button" aria-label="Sign out" title={`Sign out ${session.user.email ?? "user"}`} onClick={signOut}>
@@ -483,6 +528,36 @@ function App() {
             </button>
           </div>
         </header>
+
+        {createOpen && (
+          <div className="modal-backdrop" role="presentation" onClick={() => setCreateOpen(false)}>
+            <section className="modal-panel" role="dialog" aria-modal="true" aria-labelledby="create-action-title" onClick={(event) => event.stopPropagation()}>
+              <div className="panel-heading">
+                <div>
+                  <p className="eyebrow">Quick action</p>
+                  <h2 id="create-action-title">Create new</h2>
+                </div>
+                <button className="dismiss-button" aria-label="Close create action" onClick={() => setCreateOpen(false)}>
+                  <X size={18} aria-hidden="true" />
+                </button>
+              </div>
+              <div className="create-action-list">
+                <button className="create-action" onClick={() => createQuickAction("order")}>
+                  <ReceiptText size={18} aria-hidden="true" />
+                  New order
+                </button>
+                <button className="create-action" onClick={() => createQuickAction("table")}>
+                  <TableProperties size={18} aria-hidden="true" />
+                  New table
+                </button>
+                <button className="create-action" onClick={() => createQuickAction("inventory")}>
+                  <PackageSearch size={18} aria-hidden="true" />
+                  New inventory item
+                </button>
+              </div>
+            </section>
+          </div>
+        )}
 
         {activeView === "operations" && <section className="stats-grid" aria-label="Operational summary">
           {stats.map((stat) => (
@@ -542,7 +617,7 @@ function App() {
                     <span className={`status severity-${selectedAlert.severity.toLowerCase()}`}>{selectedAlert.severity}</span>
                   </div>
                   <p className="alert-detail-copy">{selectedAlert.detail}</p>
-                  <button className="back-button" onClick={() => setVisibleAlerts((current) => current.filter((item) => item.label !== selectedAlert.label))}>
+                  <button className="back-button" onClick={() => acknowledgeAlert(selectedAlert.label)}>
                     <ClipboardCheck size={16} aria-hidden="true" />
                     Acknowledge alert
                   </button>
@@ -579,7 +654,7 @@ function App() {
                       <strong>{staff.name}</strong>
                       <small>{staff.role} · {staff.station}</small>
                     </span>
-                    <span className={`status staff-status-${staff.status.toLowerCase().replace(" ", "-")}`}>{staff.status}</span>
+                    <span className={`status staff-status-${toClassName(staff.status)}`}>{staff.status}</span>
                     <ChevronRight size={18} aria-hidden="true" />
                   </button>
                 ))}
@@ -593,7 +668,7 @@ function App() {
                         <p className="eyebrow">Selected staff member</p>
                         <h2>{selectedStaff.name}</h2>
                       </div>
-                      <span className={`status staff-status-${selectedStaff.status.toLowerCase().replace(" ", "-")}`}>{selectedStaff.status}</span>
+                      <span className={`status staff-status-${toClassName(selectedStaff.status)}`}>{selectedStaff.status}</span>
                     </div>
                     <dl className="detail-list">
                       <div><dt>Role</dt><dd>{selectedStaff.role}</dd></div>
@@ -671,7 +746,7 @@ function App() {
                       <strong>{inventory.item}</strong>
                       <small>{inventory.category} · {inventory.onHand} on hand</small>
                     </span>
-                    <span className={`status inventory-status-${inventory.status.toLowerCase().replace(" ", "-")}`}>{inventory.status}</span>
+                    <span className={`status inventory-status-${toClassName(inventory.status)}`}>{inventory.status}</span>
                     <ChevronRight size={18} aria-hidden="true" />
                   </button>
                 ))}
@@ -684,7 +759,7 @@ function App() {
                       <p className="eyebrow">Selected item</p>
                       <h2>{selectedInventory.item}</h2>
                     </div>
-                    <span className={`status inventory-status-${selectedInventory.status.toLowerCase().replace(" ", "-")}`}>{selectedInventory.status}</span>
+                    <span className={`status inventory-status-${toClassName(selectedInventory.status)}`}>{selectedInventory.status}</span>
                   </div>
                   <dl className="detail-list">
                     <div><dt>On hand</dt><dd>{selectedInventory.onHand}</dd></div>
@@ -721,7 +796,7 @@ function App() {
               <section className="panel table-grid" aria-label="Restaurant table grid">
                 {tableDirectory.map((table) => (
                   <button
-                    className={`table-tile ${table.status.toLowerCase().replace(" ", "-")} ${selectedTable?.id === table.id ? "selected" : ""}`}
+                    className={`table-tile ${toClassName(table.status)} ${selectedTable?.id === table.id ? "selected" : ""}`}
                     key={table.id}
                     onClick={() => setSelectedTableId(table.id)}
                   >
@@ -739,7 +814,7 @@ function App() {
                       <p className="eyebrow">Selected table</p>
                       <h2>{selectedTable.id}</h2>
                     </div>
-                    <button className={`status status-button table-status-${selectedTable.status.toLowerCase().replace(" ", "-")}`} onClick={() => cycleTableStatus(selectedTable.id)}>
+                    <button className={`status status-button table-status-${toClassName(selectedTable.status)}`} onClick={() => cycleTableStatus(selectedTable.id)}>
                       {selectedTable.status}
                     </button>
                   </div>
