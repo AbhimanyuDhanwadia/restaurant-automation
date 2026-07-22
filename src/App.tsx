@@ -20,7 +20,8 @@ import { useMemo, useState } from "react";
 
 type OrderStatus = "Preparing" | "Ready" | "Delayed";
 type TableStatus = "Available" | "Seated" | "Reserved" | "Needs Check";
-type View = "operations" | "orders" | "tables";
+type InventoryStatus = "In Stock" | "Low Stock" | "On Order";
+type View = "operations" | "orders" | "tables" | "inventory";
 
 const stats = [
   { label: "Open orders", value: "28", detail: "+6 in 15 min", icon: ReceiptText },
@@ -100,6 +101,22 @@ const initialTables: Array<{
   { id: "T8", seats: 4, guest: "N. Rao", reservation: "5:50 PM", status: "Needs Check" },
 ];
 
+const initialInventory: Array<{
+  id: string;
+  item: string;
+  category: string;
+  onHand: string;
+  par: string;
+  supplier: string;
+  status: InventoryStatus;
+}> = [
+  { id: "INV-01", item: "Romaine lettuce", category: "Produce", onHand: "2 cases", par: "6 cases", supplier: "Greenline Farms", status: "Low Stock" },
+  { id: "INV-02", item: "Chicken breast", category: "Protein", onHand: "18 kg", par: "24 kg", supplier: "Metro Provisions", status: "Low Stock" },
+  { id: "INV-03", item: "Sparkling water", category: "Beverage", onHand: "9 cases", par: "8 cases", supplier: "Beverage Co.", status: "In Stock" },
+  { id: "INV-04", item: "Wild-caught salmon", category: "Protein", onHand: "12 kg", par: "18 kg", supplier: "Ocean Table", status: "On Order" },
+  { id: "INV-05", item: "Sourdough loaves", category: "Bakery", onHand: "14 loaves", par: "12 loaves", supplier: "Daily Crumb", status: "In Stock" },
+];
+
 function App() {
   const [orderState, setOrderState] = useState(orders);
   const [searchTerm, setSearchTerm] = useState("");
@@ -111,6 +128,9 @@ function App() {
   const [tableState, setTableState] = useState(initialTables);
   const [tableFilter, setTableFilter] = useState<TableStatus | "All">("All");
   const [selectedTableId, setSelectedTableId] = useState(initialTables[0].id);
+  const [inventoryState, setInventoryState] = useState(initialInventory);
+  const [inventoryFilter, setInventoryFilter] = useState<InventoryStatus | "All">("All");
+  const [selectedInventoryId, setSelectedInventoryId] = useState(initialInventory[0].id);
 
   const filteredOrders = useMemo(() => {
     const query = searchTerm.trim().toLowerCase();
@@ -146,6 +166,16 @@ function App() {
   }, [tableFilter, tableState]);
 
   const selectedTable = tableState.find((table) => table.id === selectedTableId) ?? tableState[0];
+
+  const inventoryDirectory = useMemo(() => {
+    if (inventoryFilter === "All") {
+      return inventoryState;
+    }
+
+    return inventoryState.filter((inventory) => inventory.status === inventoryFilter);
+  }, [inventoryFilter, inventoryState]);
+
+  const selectedInventory = inventoryState.find((inventory) => inventory.id === selectedInventoryId) ?? inventoryState[0];
 
   const cycleOrderStatus = (orderId: string) => {
     setOrderState((currentOrders) =>
@@ -184,6 +214,14 @@ function App() {
     );
   };
 
+  const receiveInventory = (inventoryId: string) => {
+    setInventoryState((currentInventory) =>
+      currentInventory.map((inventory) =>
+        inventory.id === inventoryId ? { ...inventory, status: "In Stock" } : inventory,
+      ),
+    );
+  };
+
   return (
     <main className="app-shell">
       <aside className="sidebar" aria-label="Primary navigation">
@@ -213,7 +251,10 @@ function App() {
             <CalendarDays size={18} aria-hidden="true" />
             Tables
           </button>
-          <button className="disabled-nav" disabled>
+          <button
+            className={activeView === "inventory" ? "active" : ""}
+            onClick={() => setActiveView("inventory")}
+          >
             <PackageSearch size={18} aria-hidden="true" />
             Inventory
           </button>
@@ -228,7 +269,7 @@ function App() {
         <header className="topbar">
           <div>
             <p className="eyebrow">Dinner service</p>
-            <h1>{activeView === "operations" ? "Live Operations" : activeView === "orders" ? "Orders" : "Tables"}</h1>
+            <h1>{activeView === "operations" ? "Live Operations" : activeView === "orders" ? "Orders" : activeView === "tables" ? "Tables" : "Inventory"}</h1>
           </div>
           <div className="topbar-actions">
             <label className="search-box">
@@ -259,7 +300,64 @@ function App() {
           ))}
         </section>}
 
-        {activeView === "tables" ? (
+        {activeView === "inventory" ? (
+          <section className="inventory-workspace">
+            <div className="orders-toolbar">
+              <div>
+                <p className="eyebrow">Stock control</p>
+                <h2>Inventory & Purchasing</h2>
+              </div>
+              <label className="filter-control">
+                <span>Status</span>
+                <select value={inventoryFilter} onChange={(event) => setInventoryFilter(event.target.value as InventoryStatus | "All")}>
+                  <option value="All">All items</option>
+                  <option value="In Stock">In stock</option>
+                  <option value="Low Stock">Low stock</option>
+                  <option value="On Order">On order</option>
+                </select>
+              </label>
+            </div>
+            <div className="inventory-directory">
+              <section className="panel inventory-list" aria-label="Inventory items">
+                {inventoryDirectory.map((inventory) => (
+                  <button
+                    className={`directory-row ${selectedInventory?.id === inventory.id ? "selected" : ""}`}
+                    key={inventory.id}
+                    onClick={() => setSelectedInventoryId(inventory.id)}
+                  >
+                    <span>
+                      <strong>{inventory.item}</strong>
+                      <small>{inventory.category} · {inventory.onHand} on hand</small>
+                    </span>
+                    <span className={`status inventory-status-${inventory.status.toLowerCase().replace(" ", "-")}`}>{inventory.status}</span>
+                    <ChevronRight size={18} aria-hidden="true" />
+                  </button>
+                ))}
+                {inventoryDirectory.length === 0 && <p className="empty-state">No inventory matches this status.</p>}
+              </section>
+              {selectedInventory && (
+                <section className="panel order-detail" aria-label={`Details for ${selectedInventory.item}`}>
+                  <div className="panel-heading">
+                    <div>
+                      <p className="eyebrow">Selected item</p>
+                      <h2>{selectedInventory.item}</h2>
+                    </div>
+                    <span className={`status inventory-status-${selectedInventory.status.toLowerCase().replace(" ", "-")}`}>{selectedInventory.status}</span>
+                  </div>
+                  <dl className="detail-list">
+                    <div><dt>On hand</dt><dd>{selectedInventory.onHand}</dd></div>
+                    <div><dt>Par level</dt><dd>{selectedInventory.par}</dd></div>
+                    <div><dt>Supplier</dt><dd>{selectedInventory.supplier}</dd></div>
+                  </dl>
+                  <button className="back-button" onClick={() => receiveInventory(selectedInventory.id)} disabled={selectedInventory.status === "In Stock"}>
+                    <ClipboardCheck size={16} aria-hidden="true" />
+                    Mark received
+                  </button>
+                </section>
+              )}
+            </div>
+          </section>
+        ) : activeView === "tables" ? (
           <section className="tables-workspace">
             <div className="orders-toolbar">
               <div>

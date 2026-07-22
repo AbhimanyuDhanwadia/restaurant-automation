@@ -239,6 +239,11 @@ h2 {
   gap: 18px;
 }
 
+.inventory-workspace {
+  display: grid;
+  gap: 18px;
+}
+
 .orders-toolbar {
   display: flex;
   align-items: end;
@@ -280,6 +285,18 @@ h2 {
   grid-template-columns: minmax(0, 1.25fr) minmax(320px, 0.75fr);
   gap: 18px;
   align-items: start;
+}
+
+.inventory-directory {
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(320px, 0.75fr);
+  gap: 18px;
+  align-items: start;
+}
+
+.inventory-list {
+  display: grid;
+  gap: 8px;
 }
 
 .table-grid {
@@ -356,6 +373,21 @@ h2 {
 .table-status-needs-check {
   background: #ffe9df;
   color: #a43b21;
+}
+
+.inventory-status-in-stock {
+  background: #e5f6ea;
+  color: #1f6b36;
+}
+
+.inventory-status-low-stock {
+  background: #ffe9df;
+  color: #a43b21;
+}
+
+.inventory-status-on-order {
+  background: #fff0c9;
+  color: #795a13;
 }
 
 .order-directory-list {
@@ -437,6 +469,11 @@ h2 {
   color: #26352f;
   cursor: pointer;
   font-weight: 800;
+}
+
+.back-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
 }
 
 .panel {
@@ -610,7 +647,8 @@ h2 {
   .stats-grid,
   .content-grid,
   .orders-directory,
-  .tables-directory {
+  .tables-directory,
+  .inventory-directory {
     grid-template-columns: 1fr 1fr;
   }
 
@@ -638,7 +676,8 @@ h2 {
   .stats-grid,
   .content-grid,
   .orders-directory,
-  .tables-directory {
+  .tables-directory,
+  .inventory-directory {
     grid-template-columns: 1fr;
   }
 
