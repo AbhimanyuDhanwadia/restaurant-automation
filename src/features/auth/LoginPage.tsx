@@ -2,7 +2,8 @@
  * LoginPage
  *
  * Renders the Supabase email/password sign-in form. Shown only when there
- * is no active session. Lives as its own route so the URL is `/login`.
+ * is no active session. It is rendered by AuthGuard until a dedicated auth
+ * route is introduced.
  */
 
 import { ChefHat } from "lucide-react";

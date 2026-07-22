@@ -24,15 +24,17 @@ import {
   createRootRoute,
   createRoute,
   createRouter,
+  lazyRouteComponent,
 } from "@tanstack/react-router";
 import { AuthGuard } from "@/features/auth/AuthGuard";
 import { AppShell } from "@/components/layout/AppShell";
-import { OperationsPage } from "@/pages/OperationsPage";
-import { OrdersPage } from "@/pages/OrdersPage";
-import { TablesPage } from "@/pages/TablesPage";
-import { InventoryPage } from "@/pages/InventoryPage";
-import { StaffPage } from "@/pages/StaffPage";
-import { AlertsPage } from "@/pages/AlertsPage";
+
+const OperationsPage = lazyRouteComponent(() => import("@/pages/OperationsPage"), "OperationsPage");
+const OrdersPage = lazyRouteComponent(() => import("@/pages/OrdersPage"), "OrdersPage");
+const TablesPage = lazyRouteComponent(() => import("@/pages/TablesPage"), "TablesPage");
+const InventoryPage = lazyRouteComponent(() => import("@/pages/InventoryPage"), "InventoryPage");
+const StaffPage = lazyRouteComponent(() => import("@/pages/StaffPage"), "StaffPage");
+const AlertsPage = lazyRouteComponent(() => import("@/pages/AlertsPage"), "AlertsPage");
 
 // ---------------------------------------------------------------------------
 // Root route — wraps everything in the AuthGuard.
@@ -103,7 +105,9 @@ const routeTree = rootRoute.addChildren([
   alertsRoute,
 ]);
 
-export const router = createRouter({ routeTree });
+const basepath = import.meta.env.BASE_URL.replace(/\/$/, "") || "/";
+
+export const router = createRouter({ routeTree, basepath });
 
 // TanStack Router type registration — enables full TypeScript inference on
 // useNavigate, Link, useParams, etc.

@@ -17,4 +17,14 @@ export default defineConfig({
       "@": fileURLToPath(new URL("./src", import.meta.url)),
     },
   },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          router: ["@tanstack/react-router", "@tanstack/router-core"],
+          data: ["@tanstack/react-query", "@supabase/supabase-js", "zustand"],
+        },
+      },
+    },
+  },
 });
