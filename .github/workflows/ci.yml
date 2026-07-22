@@ -2,9 +2,9 @@ name: Continuous integration
 
 on:
   push:
-    branches: [main]
+    branches: [main, v2]
   pull_request:
-    branches: [main]
+    branches: [main, v2]
 
 permissions:
   contents: read
@@ -30,3 +30,14 @@ jobs:
 
       - name: Build production bundle
         run: npm run build
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Run Go tests
+        run: go test ./...
+
+      - name: Run Go vet
+        run: go vet ./...

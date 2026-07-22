@@ -1,6 +1,8 @@
 # Restaurant Automation
 
-A web operations console for restaurants to coordinate live orders, tables, kitchen load, inventory alerts, and staff handoffs from one screen. It uses React, Vite, Supabase Auth, and GitHub Pages deployment.
+A web operations console for restaurants to coordinate live orders, tables, kitchen load, inventory alerts, and staff handoffs from one screen. It uses React, Vite, Supabase Auth, Go, PostgreSQL, Docker Compose, and GitHub Actions.
+
+The `v2` branch is the active development line for the local-first platform blueprint. Work is delivered phase by phase and pushed after each completed phase.
 
 ## Milestones
 
@@ -24,7 +26,11 @@ See [RUNNING.md](RUNNING.md) for Node.js requirements, Supabase setup, verificat
 
 ## Verification
 
-Every push to `main` and pull request targeting `main` runs the CI workflow. It installs the locked dependencies, runs `npm run lint`, and builds the production bundle with `npm run build`.
+Every push to `main` or `v2`, and every pull request targeting either branch, runs the CI workflow. It installs the locked dependencies, runs frontend lint/build checks, and runs `go test ./...` plus `go vet ./...`.
+
+## Backend Foundation
+
+The Go API starts on port `8080` and currently exposes `/health`, `/ready`, and the versioned `/api/v1` route namespace. PostgreSQL and the API can be started together with Docker Compose. Configuration is loaded from environment variables or a local `.env` file; secrets are never committed.
 
 ## Deployment
 

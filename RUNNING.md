@@ -52,6 +52,37 @@ npm run dev
 
 Open the URL printed by Vite, normally `http://localhost:5173`.
 
+## Run the Go API
+
+From the repository root, start the API directly:
+
+```bash
+go run ./cmd/server
+```
+
+The API listens on `http://localhost:8080`. Check its foundation endpoints:
+
+```bash
+curl http://localhost:8080/health
+curl http://localhost:8080/ready
+```
+
+## Run With Docker Compose
+
+Docker Compose starts the Go API and PostgreSQL together:
+
+```bash
+docker compose -f docker/docker-compose.yml up --build
+```
+
+The API is available at `http://localhost:8080` and PostgreSQL is available at `localhost:5432`. Stop the stack with:
+
+```bash
+docker compose -f docker/docker-compose.yml down
+```
+
+Add `-v` to the `down` command only when you intentionally want to delete the local PostgreSQL volume.
+
 ## Verify Changes
 
 Run the same checks used by GitHub Actions:
@@ -59,6 +90,8 @@ Run the same checks used by GitHub Actions:
 ```bash
 npm run lint
 npm run build
+go test ./...
+go vet ./...
 ```
 
 To preview the production bundle locally:
