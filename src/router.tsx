@@ -8,13 +8,17 @@
  *
  * Route tree:
  *   /            → OperationsPage
+ *   /operations   → OperationsPage
  *   /orders      → OrdersPage
+ *   /kitchen     → KitchenPage
  *   /tables      → TablesPage
  *   /inventory   → InventoryPage
  *   /staff       → StaffPage
  *   /alerts      → AlertsPage
+ *   /analytics   → AnalyticsPage
+ *   /settings    → SettingsPage
  *
- * In Milestone 5 we will add:
+ * Future phases will add:
  *   /printers    → PrintersPage
  *   /analytics   → AnalyticsPage
  *   /settings    → SettingsPage
@@ -35,6 +39,9 @@ const TablesPage = lazyRouteComponent(() => import("@/pages/TablesPage"), "Table
 const InventoryPage = lazyRouteComponent(() => import("@/pages/InventoryPage"), "InventoryPage");
 const StaffPage = lazyRouteComponent(() => import("@/pages/StaffPage"), "StaffPage");
 const AlertsPage = lazyRouteComponent(() => import("@/pages/AlertsPage"), "AlertsPage");
+const KitchenPage = lazyRouteComponent(() => import("@/pages/KitchenPage"), "KitchenPage");
+const AnalyticsPage = lazyRouteComponent(() => import("@/pages/AnalyticsPage"), "AnalyticsPage");
+const SettingsPage = lazyRouteComponent(() => import("@/pages/SettingsPage"), "SettingsPage");
 
 // ---------------------------------------------------------------------------
 // Root route — wraps everything in the AuthGuard.
@@ -68,6 +75,18 @@ const ordersRoute = createRoute({
   component: OrdersPage,
 });
 
+const operationsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/operations",
+  component: OperationsPage,
+});
+
+const kitchenRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/kitchen",
+  component: KitchenPage,
+});
+
 const tablesRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/tables",
@@ -92,17 +111,33 @@ const alertsRoute = createRoute({
   component: AlertsPage,
 });
 
+const analyticsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/analytics",
+  component: AnalyticsPage,
+});
+
+const settingsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/settings",
+  component: SettingsPage,
+});
+
 // ---------------------------------------------------------------------------
 // Router instance
 // ---------------------------------------------------------------------------
 
 const routeTree = rootRoute.addChildren([
   indexRoute,
+  operationsRoute,
   ordersRoute,
+  kitchenRoute,
   tablesRoute,
   inventoryRoute,
   staffRoute,
   alertsRoute,
+  analyticsRoute,
+  settingsRoute,
 ]);
 
 const basepath = import.meta.env.BASE_URL.replace(/\/$/, "") || "/";

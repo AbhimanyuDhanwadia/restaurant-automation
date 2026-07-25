@@ -27,6 +27,12 @@ A web operations console for restaurants to coordinate live orders, tables, kitc
 - **Local-first persistence** — all domain stores use Zustand `persist` middleware with automatic legacy-format migration.
 - **Global search** — top-bar search filters the active page's data in real time.
 
+## v2 Phase Status
+
+- Phase 1: Foundation complete. Go API, React frontend, PostgreSQL Compose setup, Supabase Auth, logging, CI, and environment configuration are in place.
+- Phase 2: Restaurant UI complete on `v2`. Dashboard, Orders, Kitchen, Tables, Inventory, Staff, Alerts, Analytics, and Settings use mock data and local UI state.
+- Phase 3+: Not started. Automation, integrations, printer infrastructure, system health, events, analytics persistence, and AI remain separate future phases.
+
 ## Project Structure
 
 ```
@@ -45,7 +51,7 @@ A web operations console for restaurants to coordinate live orders, tables, kitc
 │   ├── data/             # Seed / demo data
 │   ├── features/auth/    # AuthGuard, LoginPage
 │   ├── lib/              # Supabase client, query client, utils, storage migration
-│   ├── pages/            # OperationsPage, OrdersPage, TablesPage, InventoryPage, StaffPage, AlertsPage
+│   ├── pages/            # Operations, Orders, Kitchen, Tables, Inventory, Staff, Alerts, Analytics, Settings
 │   ├── stores/           # Zustand stores (orders, tables, inventory, staff, alerts, ui)
 │   ├── types/            # Domain type definitions
 │   ├── router.tsx        # TanStack Router route tree
@@ -89,6 +95,8 @@ The Go API starts on port `8080` and exposes:
 | `/api/v1/*` | Versioned API namespace |
 
 PostgreSQL and the API can be started together with Docker Compose. Configuration is loaded from environment variables or a `.env` file; secrets are never committed.
+
+Phase 2 does not add database migrations or external integrations. The Kitchen, Analytics, and Settings pages are intentionally mock-data interfaces so staff workflows can be reviewed before the automation engine is introduced.
 
 ## Deployment
 

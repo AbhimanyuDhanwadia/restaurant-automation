@@ -66,8 +66,14 @@ Open the URL printed by Vite, normally `http://localhost:5173`.
 | `/inventory` | Inventory alerts & purchasing |
 | `/staff` | Staff roster & shift handoff |
 | `/alerts` | Operational alerts |
+| `/operations` | Live operations workspace |
+| `/kitchen` | Kitchen ticket queue |
+| `/analytics` | Restaurant analytics |
+| `/settings` | Restaurant settings |
 
 All routes are protected by Supabase Auth. You will be redirected to the login screen until valid Supabase credentials are configured.
+
+Kitchen tickets, analytics ranges, and settings controls are mock-data interactions in Phase 2. They do not call the Go API or external providers yet.
 
 ## Run the Go API
 

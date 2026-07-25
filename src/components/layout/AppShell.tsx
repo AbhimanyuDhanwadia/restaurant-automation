@@ -18,11 +18,15 @@ import { Topbar } from "@/components/layout/Topbar";
 
 const PAGE_META: Record<string, { eyebrow: string; title: string }> = {
   "/": { eyebrow: "Dinner service", title: "Live Operations" },
+  "/operations": { eyebrow: "Operations", title: "Live Operations" },
   "/orders": { eyebrow: "Order intake", title: "Orders" },
+  "/kitchen": { eyebrow: "Production floor", title: "Kitchen" },
   "/tables": { eyebrow: "Floor plan", title: "Tables" },
   "/inventory": { eyebrow: "Stock control", title: "Inventory" },
   "/staff": { eyebrow: "Shift handoff", title: "Staff" },
   "/alerts": { eyebrow: "Attention queue", title: "Alerts" },
+  "/analytics": { eyebrow: "Performance view", title: "Analytics" },
+  "/settings": { eyebrow: "Administration", title: "Settings" },
 };
 
 interface AppShellProps {
