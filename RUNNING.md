@@ -90,6 +90,18 @@ curl http://localhost:8080/health
 curl http://localhost:8080/ready
 ```
 
+Submit a mock order to the Phase 3 automation pipeline and inspect its state:
+
+```bash
+curl -X POST http://localhost:8080/api/v1/automation/orders \
+  -H 'Content-Type: application/json' \
+  -d '{"order_id":"ORD-1842"}'
+curl http://localhost:8080/api/v1/automation/queue
+curl http://localhost:8080/api/v1/automation/events
+```
+
+The Phase 3 engine is intentionally in-memory. It emits the order lifecycle events and processes them through a bounded worker queue, but it does not write to PostgreSQL or print tickets yet. Restarting the API clears its events and queue.
+
 ### Environment Variables (Backend)
 
 These can be set in `.env` or exported in your shell:

@@ -10,6 +10,7 @@ import (
 	"syscall"
 
 	"github.com/restaurantautomation/api/internal/api"
+	"github.com/restaurantautomation/api/internal/automation"
 	"github.com/restaurantautomation/api/internal/config"
 	"github.com/restaurantautomation/api/internal/logger"
 )
@@ -26,8 +27,11 @@ func main() {
 	log := logger.New(cfg.Log.Level, cfg.Log.Pretty)
 	log.Info().Msg("starting restaurant automation api")
 
-	// 3. Initialize Router
-	router := api.NewRouter(cfg, log)
+	// 3. Initialize the Phase 3 in-memory automation engine and router.
+	engine := automation.NewEngine(2, 100, automation.RetryPolicy{MaxAttempts: 3})
+	engine.Start(context.Background())
+	defer engine.Close()
+	router := api.NewRouter(cfg, log, engine)
 
 	// 4. Setup HTTP Server
 	server := &http.Server{

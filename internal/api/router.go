@@ -10,12 +10,13 @@ import (
 
 	"github.com/restaurantautomation/api/internal/api/handlers"
 	appm "github.com/restaurantautomation/api/internal/api/middleware"
+	"github.com/restaurantautomation/api/internal/automation"
 	"github.com/restaurantautomation/api/internal/config"
 )
 
 // NewRouter constructs the Chi router with the standard middleware stack
 // and registers all API routes.
-func NewRouter(cfg *config.Config, log zerolog.Logger) *chi.Mux {
+func NewRouter(cfg *config.Config, log zerolog.Logger, engine *automation.Engine) *chi.Mux {
 	r := chi.NewRouter()
 
 	// 1. Basic Middleware
@@ -40,7 +41,11 @@ func NewRouter(cfg *config.Config, log zerolog.Logger) *chi.Mux {
 
 	// 4. API Routes (Will be authenticated later)
 	r.Route("/api/v1", func(r chi.Router) {
-		// Placeholder for order routes (Milestone 4)
+		r.Route("/automation", func(r chi.Router) {
+			r.Post("/orders", handlers.SubmitAutomationOrder(engine))
+			r.Get("/events", handlers.AutomationEvents(engine))
+			r.Get("/queue", handlers.AutomationQueue(engine))
+		})
 		r.Get("/orders", func(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusNotImplemented)
 		})
