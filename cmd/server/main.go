@@ -14,6 +14,7 @@ import (
 	"github.com/restaurantautomation/api/internal/automation"
 	"github.com/restaurantautomation/api/internal/config"
 	"github.com/restaurantautomation/api/internal/integrations"
+	"github.com/restaurantautomation/api/internal/intelligence"
 	"github.com/restaurantautomation/api/internal/logger"
 	"github.com/restaurantautomation/api/internal/printers"
 )
@@ -41,7 +42,10 @@ func main() {
 	printerManager.Start(context.Background())
 	defer printerManager.Close()
 	analyticsService := analytics.NewService(engine, printerManager)
-	router := api.NewRouter(cfg, log, engine, providers, printerManager, analyticsService)
+	intelligenceService := intelligence.NewService(engine, printerManager)
+	intelligenceService.Start(context.Background())
+	defer intelligenceService.Close()
+	router := api.NewRouter(cfg, log, engine, providers, printerManager, analyticsService, intelligenceService)
 
 	// 4. Setup HTTP Server
 	server := &http.Server{

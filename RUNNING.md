@@ -102,6 +102,7 @@ curl http://localhost:8080/api/v1/automation/events
 curl http://localhost:8080/api/v1/integrations
 curl http://localhost:8080/api/v1/printers
 curl http://localhost:8080/api/v1/analytics/overview
+curl http://localhost:8080/api/v1/insights
 ```
 
 The Phase 3-5 engine is intentionally in-memory. The integrations endpoint reports the local mock provider, and the printers endpoint reports the local mock kitchen printer. To queue a ticket:
@@ -178,7 +179,7 @@ The deployed site uses the `/restaurant-automation/` base path. Local developmen
 
 ## Automation Dashboard
 
-Open `/automation` after signing in to inspect integrations, worker health, queue metrics, printer status, and the latest event stream. The page polls the Go API every five seconds. Set `VITE_API_URL` when the API is hosted somewhere other than `http://localhost:8080`; otherwise it uses local demo values when the API is unavailable.
+Open `/automation` after signing in to inspect integrations, worker health, queue metrics, printer status, event stream, and operational-intelligence signals. The page polls the Go API every five seconds. The current intelligence service is a local, explainable rules engine; it does not call an external AI model. Set `VITE_API_URL` when the API is hosted somewhere other than `http://localhost:8080`; otherwise it uses local demo values when the API is unavailable.
 
 ## Troubleshooting
 

@@ -1,0 +1,29 @@
+package intelligence
+
+import (
+	"context"
+	"testing"
+
+	"github.com/restaurantautomation/api/internal/automation"
+	"github.com/restaurantautomation/api/internal/printers"
+)
+
+func TestServiceCreatesInsightsFromFailuresAndOfflinePrinters(t *testing.T) {
+	engine := automation.NewEngine(1, 10, automation.RetryPolicy{MaxAttempts: 1})
+	engine.Start(context.Background())
+	defer engine.Close()
+	printerManager := printers.NewManager(printers.ESCPosFormatter{}, 1)
+	if err := printerManager.Register(printers.NewMockDriver("kitchen"), "kitchen"); err != nil {
+		t.Fatal(err)
+	}
+	service := NewService(engine, printerManager)
+	service.evaluateEvent(automation.NewEvent(automation.EventJobFailed, "ORD-500", nil))
+	service.evaluateRuntime()
+	insights := service.Insights()
+	if len(insights) != 2 {
+		t.Fatalf("got %d insights, want 2", len(insights))
+	}
+	if insights[0].Kind != "printer_anomaly" && insights[1].Kind != "printer_anomaly" {
+		t.Fatal("expected printer anomaly")
+	}
+}

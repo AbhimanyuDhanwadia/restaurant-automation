@@ -1,4 +1,4 @@
-import { Activity, CheckCircle2, CircleAlert, Database, PlugZap, Printer, RefreshCw, Wifi } from "lucide-react";
+import { Activity, CheckCircle2, CircleAlert, Database, PlugZap, Printer, RefreshCw, Sparkles, Wifi } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Panel, PanelHeading } from "@/components/ui/Panel";
 
@@ -6,6 +6,7 @@ type Provider = { name: string; status: string };
 type Printer = { name: string; status: string; queue_depth: number; printed: number; failed: number };
 type Event = { id: string; type: string; order_id: string; created_at: string };
 type Queue = { queue_depth: number; queue_capacity: number; workers: number; events: number; retried: number; failed: number };
+type Insight = { id: string; kind: string; severity: "info" | "warning" | "critical"; resource: string; title: string; detail: string; updated_at: string };
 
 const MOCK_PROVIDERS: Provider[] = [
   { name: "mock", status: "connected" },
@@ -23,6 +24,7 @@ const MOCK_EVENTS: Event[] = [
   { id: "4", type: "order.stored", order_id: "ORD-1838", created_at: new Date(Date.now() - 150_000).toISOString() },
 ];
 const MOCK_QUEUE: Queue = { queue_depth: 2, queue_capacity: 100, workers: 2, events: 184, retried: 3, failed: 1 };
+const MOCK_INSIGHTS: Insight[] = [{ id: "printer", kind: "printer_anomaly", severity: "warning", resource: "cashier", title: "Cashier printer is unavailable", detail: "Tickets will remain queued until the printer reconnects.", updated_at: new Date().toISOString() }];
 
 const API_URL = (import.meta.env.VITE_API_URL ?? "http://localhost:8080").replace(/\/$/, "");
 
@@ -44,21 +46,24 @@ export function AutomationPage() {
   const [printers, setPrinters] = useState(MOCK_PRINTERS);
   const [events, setEvents] = useState(MOCK_EVENTS);
   const [queue, setQueue] = useState(MOCK_QUEUE);
+  const [insights, setInsights] = useState(MOCK_INSIGHTS);
   const [lastUpdated, setLastUpdated] = useState(new Date());
   const [refreshing, setRefreshing] = useState(false);
 
   const refresh = useCallback(async () => {
     setRefreshing(true);
-    const [nextProviders, nextPrinters, nextEvents, nextQueue] = await Promise.all([
+    const [nextProviders, nextPrinters, nextEvents, nextQueue, nextInsights] = await Promise.all([
       readApi<Provider[]>("/api/v1/integrations", MOCK_PROVIDERS),
       readApi<Printer[]>("/api/v1/printers", MOCK_PRINTERS),
       readApi<Event[]>("/api/v1/automation/events", MOCK_EVENTS),
       readApi<Queue>("/api/v1/automation/queue", MOCK_QUEUE),
+      readApi<Insight[]>("/api/v1/insights", MOCK_INSIGHTS),
     ]);
     setProviders(nextProviders.length ? nextProviders : MOCK_PROVIDERS);
     setPrinters(nextPrinters.length ? nextPrinters : MOCK_PRINTERS);
     setEvents(nextEvents.length ? nextEvents.slice(-8).reverse() : MOCK_EVENTS);
     setQueue(nextQueue);
+    setInsights(nextInsights.length ? nextInsights : MOCK_INSIGHTS);
     setLastUpdated(new Date());
     setRefreshing(false);
   }, []);
@@ -93,6 +98,8 @@ export function AutomationPage() {
         <Panel label="Integration status"><PanelHeading eyebrow="Integrations" title="Provider connections" action={<PlugZap size={20} aria-hidden="true" />} /><div className="automation-directory">{providers.map((provider) => <div className="automation-row" key={provider.name}><span>{displayName(provider.name)}</span><strong className={statusClass(provider.status)}>{provider.status}</strong></div>)}</div></Panel>
         <Panel label="Printer status"><PanelHeading eyebrow="Printers" title="Print infrastructure" action={<Printer size={20} aria-hidden="true" />} /><div className="automation-directory">{printers.map((printer) => <div className="automation-row" key={printer.name}><span>{displayName(printer.name)}</span><div><strong className={statusClass(printer.status)}>{printer.status}</strong><small>{printer.queue_depth} queued · {printer.failed} failures</small></div></div>)}</div><p className="automation-footnote">{readyPrinters} of {printers.length} printers ready</p></Panel>
       </div>
+
+      <Panel label="Operational intelligence"><PanelHeading eyebrow="Operational intelligence" title="Attention signals" action={<Sparkles size={20} aria-hidden="true" />} /><div className="insight-list">{insights.map((insight) => <article className={`insight-row insight-${insight.severity}`} key={insight.id}><CircleAlert size={18} aria-hidden="true" /><div><strong>{insight.title}</strong><p>{insight.detail}</p><small>{displayName(insight.kind)} · {displayName(insight.resource)}</small></div></article>)}</div></Panel>
 
       <Panel label="Event stream"><PanelHeading eyebrow="Event stream" title="Latest automation events" action={latestEvent ? <span className="automation-live-dot">Live</span> : undefined} /><div className="event-stream">{events.map((event) => <div className="event-row" key={event.id}><time>{new Date(event.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</time><span className="event-marker" /><div><strong>{displayName(event.type)}</strong><small>{event.order_id}</small></div></div>)}</div></Panel>
       <p className="automation-updated">Last checked {lastUpdated.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" })}</p>
