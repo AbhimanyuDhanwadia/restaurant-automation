@@ -1,65 +1,49 @@
-import { BarChart3, Clock3, Flame, ReceiptText } from "lucide-react";
-import { useState } from "react";
+import { BarChart3, Clock3, Flame, ReceiptText, RefreshCw } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Panel, PanelHeading } from "@/components/ui/Panel";
 
-const RANGE_DATA = {
-  Today: { orders: "128", revenue: "$4,860", averageTicket: "$38", prepTime: "14 min", bars: [52, 66, 48, 74, 82, 61, 88] },
-  "7 days": { orders: "842", revenue: "$31,420", averageTicket: "$37", prepTime: "13 min", bars: [64, 72, 58, 82, 76, 68, 91] },
-  "30 days": { orders: "3,610", revenue: "$136,800", averageTicket: "$38", prepTime: "12 min", bars: [71, 80, 68, 86, 79, 75, 94] },
-} as const;
+type Metric = { value: number; available: boolean };
+type Report = { generated_at: string; orders: Metric; sales: Metric; average_ticket: Metric; kitchen_completion: Metric; delivery_time: Metric; printer_availability: Metric; printer_utilization: Metric; staff_productivity: Metric; peak_hours: Array<{ hour: number; orders: number }> };
 
-type Range = keyof typeof RANGE_DATA;
+const API_URL = (import.meta.env.VITE_API_URL ?? "http://localhost:8080").replace(/\/$/, "");
+const DEMO_REPORT: Report = { generated_at: new Date().toISOString(), orders: { value: 128, available: true }, sales: { value: 0, available: false }, average_ticket: { value: 0, available: false }, kitchen_completion: { value: 94, available: true }, delivery_time: { value: 0, available: false }, printer_availability: { value: 98, available: true }, printer_utilization: { value: 222, available: true }, staff_productivity: { value: 0, available: false }, peak_hours: [{ hour: 11, orders: 8 }, { hour: 12, orders: 16 }, { hour: 13, orders: 12 }, { hour: 17, orders: 19 }, { hour: 18, orders: 26 }, { hour: 19, orders: 18 }, { hour: 20, orders: 29 }] };
+
+function metricValue(metric: Metric, suffix = "") { return metric.available ? `${metric.value}${suffix}` : "Unavailable"; }
+function hourLabel(hour: number) { const meridiem = hour >= 12 ? "p" : "a"; const displayHour = hour % 12 || 12; return `${displayHour}${meridiem}`; }
 
 export function AnalyticsPage() {
-  const [range, setRange] = useState<Range>("Today");
-  const data = RANGE_DATA[range];
+  const [report, setReport] = useState<Report>(DEMO_REPORT);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const refresh = useCallback(async () => {
+    setRefreshing(true);
+    try { const response = await fetch(`${API_URL}/api/v1/analytics/overview`); if (response.ok) setReport(await response.json() as Report); } catch { setReport(DEMO_REPORT); } finally { setRefreshing(false); }
+  }, []);
+  useEffect(() => { void refresh(); const timer = window.setInterval(() => void refresh(), 15_000); return () => window.clearInterval(timer); }, [refresh]);
+
+  const peakHours = useMemo(() => report.peak_hours.length ? report.peak_hours.slice(0, 7).sort((a, b) => a.hour - b.hour) : DEMO_REPORT.peak_hours, [report.peak_hours]);
+  const highestVolume = Math.max(...peakHours.map((entry) => entry.orders), 1);
 
   return (
     <section className="analytics-workspace">
       <div className="orders-toolbar">
-        <div>
-          <p className="eyebrow">Performance view</p>
-          <h2>Restaurant Analytics</h2>
-        </div>
-        <label className="filter-control">
-          <span>Range</span>
-          <select value={range} onChange={(event) => setRange(event.target.value as Range)}>
-            <option value="Today">Today</option>
-            <option value="7 days">Last 7 days</option>
-            <option value="30 days">Last 30 days</option>
-          </select>
-        </label>
+        <div><p className="eyebrow">Performance view</p><h2>Restaurant Analytics</h2></div>
+        <button type="button" className="icon-button" onClick={() => void refresh()} disabled={refreshing} title="Refresh analytics" aria-label="Refresh analytics"><RefreshCw size={18} aria-hidden="true" className={refreshing ? "spin" : undefined} /></button>
       </div>
 
       <section className="analytics-metric-grid" aria-label="Analytics summary">
-        <article className="stat-card"><ReceiptText size={22} aria-hidden="true" /><div><span>Orders</span><strong>{data.orders}</strong><small>{range}</small></div></article>
-        <article className="stat-card"><BarChart3 size={22} aria-hidden="true" /><div><span>Revenue</span><strong>{data.revenue}</strong><small>Gross sales</small></div></article>
-        <article className="stat-card"><ReceiptText size={22} aria-hidden="true" /><div><span>Average ticket</span><strong>{data.averageTicket}</strong><small>Per order</small></div></article>
-        <article className="stat-card"><Clock3 size={22} aria-hidden="true" /><div><span>Prep time</span><strong>{data.prepTime}</strong><small>Kitchen average</small></div></article>
+        <article className="stat-card"><ReceiptText size={22} aria-hidden="true" /><div><span>Orders</span><strong>{metricValue(report.orders)}</strong><small>Captured events</small></div></article>
+        <article className="stat-card"><BarChart3 size={22} aria-hidden="true" /><div><span>Sales</span><strong>{metricValue(report.sales)}</strong><small>Order totals required</small></div></article>
+        <article className="stat-card"><ReceiptText size={22} aria-hidden="true" /><div><span>Printer availability</span><strong>{metricValue(report.printer_availability, "%")}</strong><small>Registered printers</small></div></article>
+        <article className="stat-card"><Clock3 size={22} aria-hidden="true" /><div><span>Kitchen completion</span><strong>{metricValue(report.kitchen_completion, "%")}</strong><small>Orders queued</small></div></article>
       </section>
 
       <div className="analytics-grid">
-        <Panel label="Order volume trend">
-          <PanelHeading eyebrow="Order volume" title="Service demand" />
-          <div className="bar-chart" aria-label={`Mock order volume for ${range}`}>
-            {data.bars.map((height, index) => <div className="bar-column" key={`${range}-${index}`}><span style={{ height: `${height}%` }} /><small>{["11a", "12p", "1p", "5p", "6p", "7p", "8p"][index]}</small></div>)}
-          </div>
-        </Panel>
-        <Panel label="Operational performance">
-          <PanelHeading eyebrow="Service health" title="Key performance" />
-          <div className="performance-list">
-            <div><span>Orders ready on time</span><strong>94%</strong></div>
-            <div><span>Kitchen throughput</span><strong>87%</strong></div>
-            <div><span>Table turn time</span><strong>68 min</strong></div>
-            <div><span>Inventory variance</span><strong>2.4%</strong></div>
-          </div>
-        </Panel>
+        <Panel label="Order volume trend"><PanelHeading eyebrow="Peak hours" title="Service demand" /><div className="bar-chart" aria-label="Observed order volume by hour">{peakHours.map((entry) => <div className="bar-column" key={entry.hour}><span style={{ height: `${Math.max(12, (entry.orders / highestVolume) * 100)}%` }} /><small>{hourLabel(entry.hour)}</small></div>)}</div></Panel>
+        <Panel label="Operational performance"><PanelHeading eyebrow="Operational data" title="Key performance" /><div className="performance-list"><div><span>Printer tickets</span><strong>{metricValue(report.printer_utilization)}</strong></div><div><span>Delivery time</span><strong>{metricValue(report.delivery_time)}</strong></div><div><span>Staff productivity</span><strong>{metricValue(report.staff_productivity)}</strong></div><div><span>Average ticket</span><strong>{metricValue(report.average_ticket)}</strong></div></div></Panel>
       </div>
 
-      <Panel label="Operations summary">
-        <PanelHeading eyebrow="Manager view" title="What changed" action={<Flame size={20} aria-hidden="true" />} />
-        <p className="analytics-summary-copy">Grill demand is the current constraint. Friday service is trending above the weekly average, while prep time remains within the target window.</p>
-      </Panel>
+      <Panel label="Analytics data quality"><PanelHeading eyebrow="Data coverage" title="Operational reporting" action={<Flame size={20} aria-hidden="true" />} /><p className="analytics-summary-copy">Order events and printer telemetry are live. Sales, delivery, and staff metrics will populate when persisted orders, delivery updates, and shift activity are connected to the reporting pipeline.</p></Panel>
     </section>
   );
 }

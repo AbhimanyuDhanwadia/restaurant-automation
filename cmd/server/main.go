@@ -9,6 +9,7 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/restaurantautomation/api/internal/analytics"
 	"github.com/restaurantautomation/api/internal/api"
 	"github.com/restaurantautomation/api/internal/automation"
 	"github.com/restaurantautomation/api/internal/config"
@@ -39,7 +40,8 @@ func main() {
 	printerManager.Register(printers.NewMockDriver("kitchen"), "kitchen")
 	printerManager.Start(context.Background())
 	defer printerManager.Close()
-	router := api.NewRouter(cfg, log, engine, providers, printerManager)
+	analyticsService := analytics.NewService(engine, printerManager)
+	router := api.NewRouter(cfg, log, engine, providers, printerManager, analyticsService)
 
 	// 4. Setup HTTP Server
 	server := &http.Server{

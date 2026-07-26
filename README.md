@@ -35,7 +35,8 @@ A web operations console for restaurants to coordinate live orders, tables, kitc
 - Phase 4: Provider boundary complete on `v2`. A registry and collector isolate provider-specific order intake behind one interface; only a local mock provider is enabled.
 - Phase 5: Printer infrastructure complete on `v2`. A printer manager provides destination routing, queued tickets, retries, reconnects, ESC/POS rendering, and reprints through a mock driver.
 - Phase 6: Automation dashboard complete on `v2`. A separate developer operations view monitors system health, integrations, queues, printers, event streams, and runtime metrics.
-- Phase 7+: Not started. Persistent analytics and AI remain separate future phases.
+- Phase 7: Operational analytics complete on `v2`. The reporting service aggregates event and printer data for order volume, kitchen completion, peak hours, and printer metrics.
+- Phase 8: AI assistance remains a separate future phase.
 
 ## Project Structure
 
@@ -106,11 +107,12 @@ The Go API starts on port `8080` and exposes:
 | `POST /api/v1/automation/orders` | Submit an order to the Phase 3 pipeline |
 | `GET /api/v1/automation/events` | Inspect the in-memory event stream |
 | `GET /api/v1/automation/queue` | Inspect queue depth and worker metrics |
+| `GET /api/v1/analytics/overview` | Aggregate current operational analytics |
 | `/api/v1/*` | Versioned API namespace |
 
 PostgreSQL and the API can be started together with Docker Compose. Configuration is loaded from environment variables or a `.env` file; secrets are never committed.
 
-Phase 6 adds the developer-facing automation dashboard at `/automation`. It polls the Phase 3-5 API endpoints and falls back to local demo state when the Go API is unavailable, so the operational view remains reviewable in frontend-only development. Phase 3-5 state resets when the Go API restarts.
+Phase 7 adds an analytics service and connects `/analytics` to its operational report. Event and printer measurements are live; sales, average ticket, delivery time, and staff productivity stay unavailable until persistent orders, delivery updates, and shift activity are introduced. State remains in-memory until the persistence phase.
 
 ## Deployment
 

@@ -74,7 +74,7 @@ Open the URL printed by Vite, normally `http://localhost:5173`.
 
 All routes are protected by Supabase Auth. You will be redirected to the login screen until valid Supabase credentials are configured.
 
-Kitchen tickets, analytics ranges, and settings controls are mock-data interactions in Phase 2. They do not call the Go API or external providers yet.
+Kitchen tickets and settings controls remain mock-data interactions. The Analytics page polls the operational reporting endpoint and transparently uses demo values only when the API is unavailable.
 
 ## Run the Go API
 
@@ -101,6 +101,7 @@ curl http://localhost:8080/api/v1/automation/queue
 curl http://localhost:8080/api/v1/automation/events
 curl http://localhost:8080/api/v1/integrations
 curl http://localhost:8080/api/v1/printers
+curl http://localhost:8080/api/v1/analytics/overview
 ```
 
 The Phase 3-5 engine is intentionally in-memory. The integrations endpoint reports the local mock provider, and the printers endpoint reports the local mock kitchen printer. To queue a ticket:

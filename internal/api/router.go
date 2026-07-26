@@ -8,6 +8,7 @@ import (
 	"github.com/go-chi/cors"
 	"github.com/rs/zerolog"
 
+	"github.com/restaurantautomation/api/internal/analytics"
 	"github.com/restaurantautomation/api/internal/api/handlers"
 	appm "github.com/restaurantautomation/api/internal/api/middleware"
 	"github.com/restaurantautomation/api/internal/automation"
@@ -18,7 +19,7 @@ import (
 
 // NewRouter constructs the Chi router with the standard middleware stack
 // and registers all API routes.
-func NewRouter(cfg *config.Config, log zerolog.Logger, engine *automation.Engine, registry *integrations.Registry, printerManager *printers.Manager) *chi.Mux {
+func NewRouter(cfg *config.Config, log zerolog.Logger, engine *automation.Engine, registry *integrations.Registry, printerManager *printers.Manager, analyticsService *analytics.Service) *chi.Mux {
 	r := chi.NewRouter()
 
 	// 1. Basic Middleware
@@ -43,6 +44,7 @@ func NewRouter(cfg *config.Config, log zerolog.Logger, engine *automation.Engine
 
 	// 4. API Routes (Will be authenticated later)
 	r.Route("/api/v1", func(r chi.Router) {
+		r.Get("/analytics/overview", handlers.AnalyticsOverview(analyticsService))
 		r.Get("/integrations", handlers.Integrations(registry))
 		r.Get("/printers", handlers.Printers(printerManager))
 		r.Post("/printers/tickets", handlers.PrintTicket(printerManager))
