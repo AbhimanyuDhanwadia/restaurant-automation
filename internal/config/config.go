@@ -44,6 +44,8 @@ type DatabaseConfig struct {
 	MaxConns int32 `mapstructure:"DB_MAX_CONNS"`
 	// MinConns is the minimum number of pool connections. Default: 5.
 	MinConns int32 `mapstructure:"DB_MIN_CONNS"`
+	// MigrationsDir is the path to versioned SQL migrations. Default: migrations.
+	MigrationsDir string `mapstructure:"MIGRATIONS_DIR"`
 }
 
 // AuthConfig holds authentication parameters.
@@ -75,6 +77,7 @@ func Load() (*Config, error) {
 	v.SetDefault("CORS_ORIGINS", "http://localhost:5173,http://localhost:5174")
 	v.SetDefault("DB_MAX_CONNS", 25)
 	v.SetDefault("DB_MIN_CONNS", 5)
+	v.SetDefault("MIGRATIONS_DIR", "migrations")
 	v.SetDefault("LOG_LEVEL", "info")
 	v.SetDefault("LOG_PRETTY", false)
 

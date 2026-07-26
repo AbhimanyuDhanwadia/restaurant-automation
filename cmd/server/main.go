@@ -8,11 +8,13 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/restaurantautomation/api/internal/analytics"
 	"github.com/restaurantautomation/api/internal/api"
 	"github.com/restaurantautomation/api/internal/automation"
 	"github.com/restaurantautomation/api/internal/config"
+	"github.com/restaurantautomation/api/internal/database"
 	"github.com/restaurantautomation/api/internal/integrations"
 	"github.com/restaurantautomation/api/internal/intelligence"
 	"github.com/restaurantautomation/api/internal/logger"
@@ -31,10 +33,33 @@ func main() {
 	log := logger.New(cfg.Log.Level, cfg.Log.Pretty)
 	log.Info().Msg("starting restaurant automation api")
 
-	// 3. Initialize the Phase 3 engine and Phase 4 provider registry.
+	// 3. Open PostgreSQL and apply versioned migrations when configured.
+	var eventPersister *database.EventPersister
+	if cfg.Database.DSN != "" {
+		startupCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+		pool, err := database.Open(startupCtx, cfg.Database)
+		if err == nil {
+			err = database.RunMigrations(startupCtx, pool, cfg.Database.MigrationsDir)
+		}
+		cancel()
+		if err != nil {
+			log.Fatal().Err(err).Msg("database startup failed")
+		}
+		defer pool.Close()
+		eventPersister = database.NewEventPersister(database.NewEventStore(pool), log)
+		log.Info().Msg("database persistence enabled")
+	} else {
+		log.Warn().Msg("database persistence disabled: DATABASE_URL is not configured")
+	}
+
+	// 4. Initialize the automation engine and service boundaries.
 	engine := automation.NewEngine(2, 100, automation.RetryPolicy{MaxAttempts: 3})
 	engine.Start(context.Background())
 	defer engine.Close()
+	if eventPersister != nil {
+		eventPersister.Start(context.Background(), engine)
+		defer eventPersister.Close()
+	}
 	providers := integrations.NewRegistry()
 	providers.Register(integrations.NewMockProvider("mock", 100))
 	printerManager := printers.NewManager(printers.ESCPosFormatter{}, 3)
@@ -47,13 +72,13 @@ func main() {
 	defer intelligenceService.Close()
 	router := api.NewRouter(cfg, log, engine, providers, printerManager, analyticsService, intelligenceService)
 
-	// 4. Setup HTTP Server
+	// 5. Setup HTTP Server
 	server := &http.Server{
 		Addr:    fmt.Sprintf(":%d", cfg.Server.Port),
 		Handler: router,
 	}
 
-	// 5. Start Server with Graceful Shutdown
+	// 6. Start Server with Graceful Shutdown
 	serverCtx, serverStopCtx := context.WithCancel(context.Background())
 
 	// Listen for syscall signals for process to interrupt/quit

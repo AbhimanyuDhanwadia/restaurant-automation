@@ -21,6 +21,7 @@ WORKDIR /app
 
 # Copy the binary to the production image from the builder stage.
 COPY --from=builder /app/server /app/server
+COPY migrations /app/migrations
 
 # Expose port 8080 to the outside world.
 EXPOSE 8080

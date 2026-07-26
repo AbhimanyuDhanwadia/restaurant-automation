@@ -37,6 +37,7 @@ A web operations console for restaurants to coordinate live orders, tables, kitc
 - Phase 6: Automation dashboard complete on `v2`. A separate developer operations view monitors system health, integrations, queues, printers, event streams, and runtime metrics.
 - Phase 7: Operational analytics complete on `v2`. The reporting service aggregates event and printer data for order volume, kitchen completion, peak hours, and printer metrics.
 - Phase 8: Operational intelligence complete on `v2`. A separate read-only event consumer produces explainable retry, failed-order, printer, and queue-pressure signals for the automation dashboard.
+- Production hardening 1: PostgreSQL persistence complete on `v2`. Versioned migrations create durable operational event history, observed independently from the automation engine.
 
 ## Project Structure
 
@@ -49,6 +50,7 @@ A web operations console for restaurants to coordinate live orders, tables, kitc
 │   ├── automation/       # Phase 3 event bus, queues, retries, workers
 │   ├── integrations/     # Phase 4 provider interface, registry, mock adapter
 │   ├── printers/          # Phase 5 routing, queue, ESC/POS, driver boundary
+│   ├── database/          # PostgreSQL pool, migrations, event persistence
 │   ├── config/           # Viper-based configuration
 │   └── logger/           # Zerolog setup
 ├── migrations/           # SQL migration files
@@ -116,6 +118,8 @@ PostgreSQL and the API can be started together with Docker Compose. Configuratio
 Phase 7 adds an analytics service and connects `/analytics` to its operational report. Event and printer measurements are live; sales, average ticket, delivery time, and staff productivity stay unavailable until persistent orders, delivery updates, and shift activity are introduced. State remains in-memory until the persistence phase.
 
 Phase 8 consumes the automation event stream separately from the order engine. It currently uses auditable rules for printer anomalies, job retries/failures, and queue pressure. This service has no external AI provider or model dependency; a future model can consume the same event boundary without changing core automation behavior.
+
+When `DATABASE_URL` is configured, the API opens a PostgreSQL pool at startup, applies the versioned SQL files in `migrations/`, and persists automation events to `operational_events`. Event persistence is a passive subscriber: a transient database write failure is logged but does not block order processing. The Docker Compose configuration enables this by default.
 
 ## Deployment
 

@@ -91,6 +91,8 @@ curl http://localhost:8080/health
 curl http://localhost:8080/ready
 ```
 
+When `DATABASE_URL` is set, startup applies the versioned SQL migrations from `MIGRATIONS_DIR` (default `migrations`) and begins storing automation events in PostgreSQL. Without `DATABASE_URL`, the API still runs for frontend and mock-workflow development, but event history is in memory only.
+
 Submit a mock order to the Phase 3 automation pipeline and inspect its state:
 
 ```bash
@@ -130,6 +132,7 @@ These can be set in `.env` or exported in your shell:
 | `DATABASE_URL` | — | PostgreSQL connection string |
 | `DB_MAX_CONNS` | `25` | Connection pool max size |
 | `DB_MIN_CONNS` | `5` | Connection pool min size |
+| `MIGRATIONS_DIR` | `migrations` | Directory containing versioned SQL migrations |
 | `SUPABASE_JWT_SECRET` | — | JWT verification for auth middleware |
 
 ## Run With Docker Compose
