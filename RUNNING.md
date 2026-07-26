@@ -99,9 +99,19 @@ curl -X POST http://localhost:8080/api/v1/automation/orders \
 curl http://localhost:8080/api/v1/automation/queue
 curl http://localhost:8080/api/v1/automation/events
 curl http://localhost:8080/api/v1/integrations
+curl http://localhost:8080/api/v1/printers
 ```
 
-The Phase 3/4 engine is intentionally in-memory. It emits the order lifecycle events and processes them through a bounded worker queue. The integrations endpoint reports the local mock provider; third-party providers are only interface implementations planned for later work. The engine does not write to PostgreSQL or print tickets yet. Restarting the API clears its events, queue, and provider state.
+The Phase 3-5 engine is intentionally in-memory. The integrations endpoint reports the local mock provider, and the printers endpoint reports the local mock kitchen printer. To queue a ticket:
+
+```bash
+curl -X POST http://localhost:8080/api/v1/printers/tickets \
+  -H 'Content-Type: application/json' \
+  -d '{"order_id":"ORD-1842","destination":"kitchen","lines":[{"text":"Paneer Tikka","quantity":2}]}'
+curl -X POST http://localhost:8080/api/v1/printers/tickets/ORD-1842/reprint
+```
+
+The printer manager renders ESC/POS bytes and exercises retry/reconnect behavior through the mock driver; it does not contact physical USB or network printers yet. Restarting the API clears its events, queues, provider state, and printer history.
 
 ### Environment Variables (Backend)
 

@@ -12,6 +12,7 @@ import (
 	"github.com/restaurantautomation/api/internal/automation"
 	"github.com/restaurantautomation/api/internal/config"
 	"github.com/restaurantautomation/api/internal/integrations"
+	"github.com/restaurantautomation/api/internal/printers"
 	"github.com/rs/zerolog"
 )
 
@@ -26,7 +27,7 @@ func TestHealthEndpoint(t *testing.T) {
 	engine := automation.NewEngine(1, 10, automation.RetryPolicy{MaxAttempts: 1})
 	engine.Start(context.Background())
 	defer engine.Close()
-	router := api.NewRouter(cfg, log, engine, integrations.NewRegistry())
+	router := api.NewRouter(cfg, log, engine, integrations.NewRegistry(), printers.NewManager(printers.ESCPosFormatter{}, 1))
 
 	req, err := http.NewRequest("GET", "/health", nil)
 	if err != nil {
@@ -61,7 +62,7 @@ func TestReadyEndpoint(t *testing.T) {
 	engine := automation.NewEngine(1, 10, automation.RetryPolicy{MaxAttempts: 1})
 	engine.Start(context.Background())
 	defer engine.Close()
-	router := api.NewRouter(cfg, log, engine, integrations.NewRegistry())
+	router := api.NewRouter(cfg, log, engine, integrations.NewRegistry(), printers.NewManager(printers.ESCPosFormatter{}, 1))
 
 	req, err := http.NewRequest("GET", "/ready", nil)
 	if err != nil {
@@ -90,7 +91,7 @@ func TestAutomationOrderEndpoint(t *testing.T) {
 	engine := automation.NewEngine(1, 10, automation.RetryPolicy{MaxAttempts: 1})
 	engine.Start(context.Background())
 	defer engine.Close()
-	router := api.NewRouter(cfg, zerolog.Nop(), engine, integrations.NewRegistry())
+	router := api.NewRouter(cfg, zerolog.Nop(), engine, integrations.NewRegistry(), printers.NewManager(printers.ESCPosFormatter{}, 1))
 
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/automation/orders", bytes.NewBufferString(`{"order_id":"ORD-100"}`))
 	req.Header.Set("Content-Type", "application/json")
@@ -106,7 +107,7 @@ func TestAutomationOrderEndpointValidatesOrderID(t *testing.T) {
 	engine := automation.NewEngine(1, 10, automation.RetryPolicy{MaxAttempts: 1})
 	engine.Start(context.Background())
 	defer engine.Close()
-	router := api.NewRouter(cfg, zerolog.Nop(), engine, integrations.NewRegistry())
+	router := api.NewRouter(cfg, zerolog.Nop(), engine, integrations.NewRegistry(), printers.NewManager(printers.ESCPosFormatter{}, 1))
 
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/automation/orders", bytes.NewBufferString(`{}`))
 	rr := httptest.NewRecorder()

@@ -33,7 +33,8 @@ A web operations console for restaurants to coordinate live orders, tables, kitc
 - Phase 2: Restaurant UI complete on `v2`. Dashboard, Orders, Kitchen, Tables, Inventory, Staff, Alerts, Analytics, and Settings use mock data and local UI state.
 - Phase 3: Automation engine complete on `v2`. The Go API now provides an in-memory event bus, bounded worker queue, retry policy, scheduler, order pipeline, and queue/event inspection endpoints.
 - Phase 4: Provider boundary complete on `v2`. A registry and collector isolate provider-specific order intake behind one interface; only a local mock provider is enabled.
-- Phase 5+: Not started. Persistent storage, printer infrastructure, automation dashboard, analytics persistence, and AI remain separate future phases.
+- Phase 5: Printer infrastructure complete on `v2`. A printer manager provides destination routing, queued tickets, retries, reconnects, ESC/POS rendering, and reprints through a mock driver.
+- Phase 6+: Not started. Persistent storage, automation dashboard, analytics persistence, and AI remain separate future phases.
 
 ## Project Structure
 
@@ -45,6 +46,7 @@ A web operations console for restaurants to coordinate live orders, tables, kitc
 │   ├── api/              # Chi router, handlers, middleware
 │   ├── automation/       # Phase 3 event bus, queues, retries, workers
 │   ├── integrations/     # Phase 4 provider interface, registry, mock adapter
+│   ├── printers/          # Phase 5 routing, queue, ESC/POS, driver boundary
 │   ├── config/           # Viper-based configuration
 │   └── logger/           # Zerolog setup
 ├── migrations/           # SQL migration files
@@ -97,6 +99,9 @@ The Go API starts on port `8080` and exposes:
 | `GET /health` | Liveness probe |
 | `GET /ready` | Readiness probe |
 | `GET /api/v1/integrations` | List registered provider health |
+| `GET /api/v1/printers` | List printer health and queue metrics |
+| `POST /api/v1/printers/tickets` | Queue a ticket for destination routing |
+| `POST /api/v1/printers/tickets/{orderID}/reprint` | Queue a previous ticket again |
 | `POST /api/v1/automation/orders` | Submit an order to the Phase 3 pipeline |
 | `GET /api/v1/automation/events` | Inspect the in-memory event stream |
 | `GET /api/v1/automation/queue` | Inspect queue depth and worker metrics |
@@ -104,7 +109,7 @@ The Go API starts on port `8080` and exposes:
 
 PostgreSQL and the API can be started together with Docker Compose. Configuration is loaded from environment variables or a `.env` file; secrets are never committed.
 
-Phase 4 keeps provider intake behind the `Provider` interface and forwards collected orders to the automation engine sink. The default `mock` provider is for local development only; no third-party network credentials or provider APIs are implemented yet. Phase 3/4 state resets when the Go API restarts.
+Phase 5 keeps printing behind the `Driver` interface and uses an in-memory mock driver by default. ESC/POS bytes are rendered and queued, but no physical USB or network printer is contacted. Phase 3-5 state resets when the Go API restarts.
 
 ## Deployment
 

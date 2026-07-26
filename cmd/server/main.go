@@ -14,6 +14,7 @@ import (
 	"github.com/restaurantautomation/api/internal/config"
 	"github.com/restaurantautomation/api/internal/integrations"
 	"github.com/restaurantautomation/api/internal/logger"
+	"github.com/restaurantautomation/api/internal/printers"
 )
 
 func main() {
@@ -34,7 +35,11 @@ func main() {
 	defer engine.Close()
 	providers := integrations.NewRegistry()
 	providers.Register(integrations.NewMockProvider("mock", 100))
-	router := api.NewRouter(cfg, log, engine, providers)
+	printerManager := printers.NewManager(printers.ESCPosFormatter{}, 3)
+	printerManager.Register(printers.NewMockDriver("kitchen"), "kitchen")
+	printerManager.Start(context.Background())
+	defer printerManager.Close()
+	router := api.NewRouter(cfg, log, engine, providers, printerManager)
 
 	// 4. Setup HTTP Server
 	server := &http.Server{
