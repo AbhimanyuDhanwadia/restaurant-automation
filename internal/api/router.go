@@ -45,6 +45,8 @@ func NewRouter(cfg *config.Config, log zerolog.Logger, engine *automation.Engine
 
 	// 4. API Routes (Will be authenticated later)
 	r.Route("/api/v1", func(r chi.Router) {
+		r.Use(appm.Auth(cfg.Auth))
+		r.Get("/me", handlers.CurrentUser())
 		r.Get("/insights", handlers.Insights(intelligenceService))
 		r.Get("/analytics/overview", handlers.AnalyticsOverview(analyticsService))
 		r.Get("/integrations", handlers.Integrations(registry))

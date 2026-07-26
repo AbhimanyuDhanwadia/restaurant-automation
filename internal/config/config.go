@@ -60,6 +60,10 @@ type AuthConfig struct {
 	// SupabaseJWTSecret is used to verify Supabase-issued JWTs server-side.
 	// Set this to the JWT secret from your Supabase project settings.
 	SupabaseJWTSecret string `mapstructure:"SUPABASE_JWT_SECRET"`
+	// Required enforces valid access tokens for all /api/v1 routes.
+	Required bool `mapstructure:"AUTH_REQUIRED"`
+	// Issuer optionally validates the iss claim on Supabase access tokens.
+	Issuer string `mapstructure:"SUPABASE_JWT_ISSUER"`
 }
 
 // LogConfig controls the zerolog output format.
@@ -86,6 +90,7 @@ func Load() (*Config, error) {
 	v.SetDefault("DB_MIN_CONNS", 5)
 	v.SetDefault("MIGRATIONS_DIR", "migrations")
 	v.SetDefault("PRINTER_CONNECT_TIMEOUT", "3s")
+	v.SetDefault("AUTH_REQUIRED", false)
 	v.SetDefault("LOG_LEVEL", "info")
 	v.SetDefault("LOG_PRETTY", false)
 
@@ -107,6 +112,9 @@ func Load() (*Config, error) {
 	// Parse CORS_ORIGINS from comma-separated string if needed.
 	if raw := v.GetString("CORS_ORIGINS"); raw != "" {
 		cfg.Server.CORSOrigins = splitTrimmed(raw, ",")
+	}
+	if cfg.Auth.Required && strings.TrimSpace(cfg.Auth.SupabaseJWTSecret) == "" {
+		return nil, fmt.Errorf("config: SUPABASE_JWT_SECRET is required when AUTH_REQUIRED=true")
 	}
 
 	return &cfg, nil

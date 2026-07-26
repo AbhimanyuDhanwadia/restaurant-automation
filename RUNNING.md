@@ -146,6 +146,8 @@ These can be set in `.env` or exported in your shell:
 | `PRINTER_KITCHEN_ADDRESS` | — | Raw TCP host and port for the kitchen ESC/POS printer |
 | `PRINTER_CONNECT_TIMEOUT` | `3s` | TCP printer connect and write timeout |
 | `SUPABASE_JWT_SECRET` | — | JWT verification for auth middleware |
+| `AUTH_REQUIRED` | `false` | Require valid Supabase access tokens on `/api/v1` routes |
+| `SUPABASE_JWT_ISSUER` | — | Optional expected `iss` claim, usually `https://<project>.supabase.co/auth/v1` |
 
 ## Run With Docker Compose
 
@@ -162,6 +164,18 @@ docker compose -f docker/docker-compose.yml down
 ```
 
 Add `-v` to the `down` command only when you intentionally want to delete the local PostgreSQL volume.
+
+## Enable Backend Authentication
+
+For production, retrieve the Supabase JWT secret from the project settings and configure:
+
+```text
+AUTH_REQUIRED=true
+SUPABASE_JWT_SECRET=your-supabase-jwt-secret
+SUPABASE_JWT_ISSUER=https://your-project.supabase.co/auth/v1
+```
+
+With this enabled, all `/api/v1` requests require `Authorization: Bearer <access-token>`. `GET /health` and `GET /ready` remain public for deployment probes.
 
 ## Verify Changes
 

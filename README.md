@@ -39,6 +39,7 @@ A web operations console for restaurants to coordinate live orders, tables, kitc
 - Phase 8: Operational intelligence complete on `v2`. A separate read-only event consumer produces explainable retry, failed-order, printer, and queue-pressure signals for the automation dashboard.
 - Production hardening 1: PostgreSQL persistence complete on `v2`. Versioned migrations create durable operational event history, observed independently from the automation engine.
 - Production hardening 2: Network printer support complete on `v2`. The printer manager can send rendered ESC/POS tickets to a raw TCP printer while preserving mock-driver development defaults.
+- Production hardening 3: Backend JWT enforcement complete on `v2`. Protected API routes can validate Supabase HS256 access tokens and expose verified claims to handlers.
 
 ## Project Structure
 
@@ -112,6 +113,7 @@ The Go API starts on port `8080` and exposes:
 | `GET /api/v1/automation/queue` | Inspect queue depth and worker metrics |
 | `GET /api/v1/analytics/overview` | Aggregate current operational analytics |
 | `GET /api/v1/insights` | List explainable operational-intelligence signals |
+| `GET /api/v1/me` | Return verified access-token claims when API auth is required |
 | `/api/v1/*` | Versioned API namespace |
 
 PostgreSQL and the API can be started together with Docker Compose. Configuration is loaded from environment variables or a `.env` file; secrets are never committed.
@@ -123,6 +125,8 @@ Phase 8 consumes the automation event stream separately from the order engine. I
 When `DATABASE_URL` is configured, the API opens a PostgreSQL pool at startup, applies the versioned SQL files in `migrations/`, and persists automation events to `operational_events`. Event persistence is a passive subscriber: a transient database write failure is logged but does not block order processing. The Docker Compose configuration enables this by default.
 
 Set `PRINTER_KITCHEN_ADDRESS` to a reachable raw-TCP ESC/POS printer, typically `printer-host:9100`, to use the production network driver. Leaving it empty retains the mock kitchen printer. An offline network printer no longer prevents API startup; the print worker reconnects before later jobs.
+
+Set `AUTH_REQUIRED=true` in production to require a valid Supabase HS256 access token on every `/api/v1` route. `SUPABASE_JWT_SECRET` becomes mandatory in that mode, and `SUPABASE_JWT_ISSUER` can validate the `iss` claim. Health probes remain public. Local Docker Compose intentionally leaves authentication disabled for development.
 
 ## Deployment
 
