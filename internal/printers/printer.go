@@ -105,9 +105,9 @@ func (m *Manager) Start(parent context.Context) error {
 	}
 	m.mu.Unlock()
 	for _, printer := range printers {
-		if err := printer.driver.Connect(); err != nil {
-			return err
-		}
+		// An offline physical printer must not prevent restaurant operations
+		// from starting; its worker will reconnect before the next print.
+		_ = printer.driver.Connect()
 		m.wg.Add(1)
 		go m.worker(printer)
 	}

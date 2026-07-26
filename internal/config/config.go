@@ -19,8 +19,15 @@ import (
 type Config struct {
 	Server   ServerConfig
 	Database DatabaseConfig
+	Printers PrintersConfig
 	Auth     AuthConfig
 	Log      LogConfig
+}
+
+// PrintersConfig holds optional physical network-printer settings.
+type PrintersConfig struct {
+	KitchenAddress string        `mapstructure:"PRINTER_KITCHEN_ADDRESS"`
+	ConnectTimeout time.Duration `mapstructure:"PRINTER_CONNECT_TIMEOUT"`
 }
 
 // ServerConfig holds HTTP server tuning parameters.
@@ -78,6 +85,7 @@ func Load() (*Config, error) {
 	v.SetDefault("DB_MAX_CONNS", 25)
 	v.SetDefault("DB_MIN_CONNS", 5)
 	v.SetDefault("MIGRATIONS_DIR", "migrations")
+	v.SetDefault("PRINTER_CONNECT_TIMEOUT", "3s")
 	v.SetDefault("LOG_LEVEL", "info")
 	v.SetDefault("LOG_PRETTY", false)
 

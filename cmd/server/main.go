@@ -63,7 +63,12 @@ func main() {
 	providers := integrations.NewRegistry()
 	providers.Register(integrations.NewMockProvider("mock", 100))
 	printerManager := printers.NewManager(printers.ESCPosFormatter{}, 3)
-	printerManager.Register(printers.NewMockDriver("kitchen"), "kitchen")
+	var kitchenDriver printers.Driver = printers.NewMockDriver("kitchen")
+	if cfg.Printers.KitchenAddress != "" {
+		kitchenDriver = printers.NewTCPDriver("kitchen", cfg.Printers.KitchenAddress, cfg.Printers.ConnectTimeout)
+		log.Info().Str("address", cfg.Printers.KitchenAddress).Msg("using TCP kitchen printer")
+	}
+	printerManager.Register(kitchenDriver, "kitchen")
 	printerManager.Start(context.Background())
 	defer printerManager.Close()
 	analyticsService := analytics.NewService(engine, printerManager)

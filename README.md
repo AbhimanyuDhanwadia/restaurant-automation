@@ -38,6 +38,7 @@ A web operations console for restaurants to coordinate live orders, tables, kitc
 - Phase 7: Operational analytics complete on `v2`. The reporting service aggregates event and printer data for order volume, kitchen completion, peak hours, and printer metrics.
 - Phase 8: Operational intelligence complete on `v2`. A separate read-only event consumer produces explainable retry, failed-order, printer, and queue-pressure signals for the automation dashboard.
 - Production hardening 1: PostgreSQL persistence complete on `v2`. Versioned migrations create durable operational event history, observed independently from the automation engine.
+- Production hardening 2: Network printer support complete on `v2`. The printer manager can send rendered ESC/POS tickets to a raw TCP printer while preserving mock-driver development defaults.
 
 ## Project Structure
 
@@ -120,6 +121,8 @@ Phase 7 adds an analytics service and connects `/analytics` to its operational r
 Phase 8 consumes the automation event stream separately from the order engine. It currently uses auditable rules for printer anomalies, job retries/failures, and queue pressure. This service has no external AI provider or model dependency; a future model can consume the same event boundary without changing core automation behavior.
 
 When `DATABASE_URL` is configured, the API opens a PostgreSQL pool at startup, applies the versioned SQL files in `migrations/`, and persists automation events to `operational_events`. Event persistence is a passive subscriber: a transient database write failure is logged but does not block order processing. The Docker Compose configuration enables this by default.
+
+Set `PRINTER_KITCHEN_ADDRESS` to a reachable raw-TCP ESC/POS printer, typically `printer-host:9100`, to use the production network driver. Leaving it empty retains the mock kitchen printer. An offline network printer no longer prevents API startup; the print worker reconnects before later jobs.
 
 ## Deployment
 

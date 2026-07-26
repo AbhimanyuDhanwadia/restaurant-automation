@@ -116,7 +116,17 @@ curl -X POST http://localhost:8080/api/v1/printers/tickets \
 curl -X POST http://localhost:8080/api/v1/printers/tickets/ORD-1842/reprint
 ```
 
-The printer manager renders ESC/POS bytes and exercises retry/reconnect behavior through the mock driver; it does not contact physical USB or network printers yet. Restarting the API clears its events, queues, provider state, and printer history.
+The printer manager renders ESC/POS bytes and exercises retry/reconnect behavior through the mock driver by default. Restarting the API clears its events, queues, provider state, and printer history.
+
+### Use a Network Kitchen Printer
+
+For a printer that accepts raw ESC/POS data over TCP, set its address before starting the API:
+
+```bash
+PRINTER_KITCHEN_ADDRESS=192.168.1.50:9100 go run ./cmd/server
+```
+
+The driver sends ESC/POS bytes directly to that socket. Keep `PRINTER_KITCHEN_ADDRESS` empty for the mock printer. If the printer is offline, the API remains available and the worker attempts to reconnect for subsequent jobs.
 
 ### Environment Variables (Backend)
 
@@ -133,6 +143,8 @@ These can be set in `.env` or exported in your shell:
 | `DB_MAX_CONNS` | `25` | Connection pool max size |
 | `DB_MIN_CONNS` | `5` | Connection pool min size |
 | `MIGRATIONS_DIR` | `migrations` | Directory containing versioned SQL migrations |
+| `PRINTER_KITCHEN_ADDRESS` | — | Raw TCP host and port for the kitchen ESC/POS printer |
+| `PRINTER_CONNECT_TIMEOUT` | `3s` | TCP printer connect and write timeout |
 | `SUPABASE_JWT_SECRET` | — | JWT verification for auth middleware |
 
 ## Run With Docker Compose
