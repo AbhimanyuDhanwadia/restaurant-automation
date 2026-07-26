@@ -49,7 +49,7 @@ const NAV_GROUPS: Array<{
   {
     label: "Automation",
     items: [
-      { to: "/automation", label: "Automation Overview", icon: Activity, disabled: true },
+      { to: "/automation", label: "Automation Overview", icon: Activity },
       { to: "/automation/order-engine", label: "Order Engine", icon: ListChecks, disabled: true },
       { to: "/automation/integrations", label: "Integrations", icon: PlugZap, disabled: true },
       { to: "/automation/print-queue", label: "Print Queue", icon: Printer, disabled: true },

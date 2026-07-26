@@ -34,7 +34,8 @@ A web operations console for restaurants to coordinate live orders, tables, kitc
 - Phase 3: Automation engine complete on `v2`. The Go API now provides an in-memory event bus, bounded worker queue, retry policy, scheduler, order pipeline, and queue/event inspection endpoints.
 - Phase 4: Provider boundary complete on `v2`. A registry and collector isolate provider-specific order intake behind one interface; only a local mock provider is enabled.
 - Phase 5: Printer infrastructure complete on `v2`. A printer manager provides destination routing, queued tickets, retries, reconnects, ESC/POS rendering, and reprints through a mock driver.
-- Phase 6+: Not started. Persistent storage, automation dashboard, analytics persistence, and AI remain separate future phases.
+- Phase 6: Automation dashboard complete on `v2`. A separate developer operations view monitors system health, integrations, queues, printers, event streams, and runtime metrics.
+- Phase 7+: Not started. Persistent analytics and AI remain separate future phases.
 
 ## Project Structure
 
@@ -57,7 +58,7 @@ A web operations console for restaurants to coordinate live orders, tables, kitc
 │   ├── data/             # Seed / demo data
 │   ├── features/auth/    # AuthGuard, LoginPage
 │   ├── lib/              # Supabase client, query client, utils, storage migration
-│   ├── pages/            # Operations, Orders, Kitchen, Tables, Inventory, Staff, Alerts, Analytics, Settings
+│   ├── pages/            # Operations, Orders, Kitchen, Tables, Inventory, Staff, Alerts, Analytics, Automation, Settings
 │   ├── stores/           # Zustand stores (orders, tables, inventory, staff, alerts, ui)
 │   ├── types/            # Domain type definitions
 │   ├── router.tsx        # TanStack Router route tree
@@ -109,7 +110,7 @@ The Go API starts on port `8080` and exposes:
 
 PostgreSQL and the API can be started together with Docker Compose. Configuration is loaded from environment variables or a `.env` file; secrets are never committed.
 
-Phase 5 keeps printing behind the `Driver` interface and uses an in-memory mock driver by default. ESC/POS bytes are rendered and queued, but no physical USB or network printer is contacted. Phase 3-5 state resets when the Go API restarts.
+Phase 6 adds the developer-facing automation dashboard at `/automation`. It polls the Phase 3-5 API endpoints and falls back to local demo state when the Go API is unavailable, so the operational view remains reviewable in frontend-only development. Phase 3-5 state resets when the Go API restarts.
 
 ## Deployment
 

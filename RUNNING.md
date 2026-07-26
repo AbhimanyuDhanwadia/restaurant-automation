@@ -70,6 +70,7 @@ Open the URL printed by Vite, normally `http://localhost:5173`.
 | `/kitchen` | Kitchen ticket queue |
 | `/analytics` | Restaurant analytics |
 | `/settings` | Restaurant settings |
+| `/automation` | Automation health, queues, printers, and events |
 
 All routes are protected by Supabase Auth. You will be redirected to the login screen until valid Supabase credentials are configured.
 
@@ -173,6 +174,10 @@ GitHub Pages deployment is handled by `.github/workflows/deploy.yml`.
 4. Push to `main`, or manually run **Deploy to GitHub Pages** from the Actions tab.
 
 The deployed site uses the `/restaurant-automation/` base path. Local development uses `/`.
+
+## Automation Dashboard
+
+Open `/automation` after signing in to inspect integrations, worker health, queue metrics, printer status, and the latest event stream. The page polls the Go API every five seconds. Set `VITE_API_URL` when the API is hosted somewhere other than `http://localhost:8080`; otherwise it uses local demo values when the API is unavailable.
 
 ## Troubleshooting
 
