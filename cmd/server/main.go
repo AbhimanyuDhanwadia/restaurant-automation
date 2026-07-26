@@ -12,6 +12,7 @@ import (
 	"github.com/restaurantautomation/api/internal/api"
 	"github.com/restaurantautomation/api/internal/automation"
 	"github.com/restaurantautomation/api/internal/config"
+	"github.com/restaurantautomation/api/internal/integrations"
 	"github.com/restaurantautomation/api/internal/logger"
 )
 
@@ -27,11 +28,13 @@ func main() {
 	log := logger.New(cfg.Log.Level, cfg.Log.Pretty)
 	log.Info().Msg("starting restaurant automation api")
 
-	// 3. Initialize the Phase 3 in-memory automation engine and router.
+	// 3. Initialize the Phase 3 engine and Phase 4 provider registry.
 	engine := automation.NewEngine(2, 100, automation.RetryPolicy{MaxAttempts: 3})
 	engine.Start(context.Background())
 	defer engine.Close()
-	router := api.NewRouter(cfg, log, engine)
+	providers := integrations.NewRegistry()
+	providers.Register(integrations.NewMockProvider("mock", 100))
+	router := api.NewRouter(cfg, log, engine, providers)
 
 	// 4. Setup HTTP Server
 	server := &http.Server{

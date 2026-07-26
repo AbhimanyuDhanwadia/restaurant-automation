@@ -98,9 +98,10 @@ curl -X POST http://localhost:8080/api/v1/automation/orders \
   -d '{"order_id":"ORD-1842"}'
 curl http://localhost:8080/api/v1/automation/queue
 curl http://localhost:8080/api/v1/automation/events
+curl http://localhost:8080/api/v1/integrations
 ```
 
-The Phase 3 engine is intentionally in-memory. It emits the order lifecycle events and processes them through a bounded worker queue, but it does not write to PostgreSQL or print tickets yet. Restarting the API clears its events and queue.
+The Phase 3/4 engine is intentionally in-memory. It emits the order lifecycle events and processes them through a bounded worker queue. The integrations endpoint reports the local mock provider; third-party providers are only interface implementations planned for later work. The engine does not write to PostgreSQL or print tickets yet. Restarting the API clears its events, queue, and provider state.
 
 ### Environment Variables (Backend)
 

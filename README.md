@@ -32,7 +32,8 @@ A web operations console for restaurants to coordinate live orders, tables, kitc
 - Phase 1: Foundation complete. Go API, React frontend, PostgreSQL Compose setup, Supabase Auth, logging, CI, and environment configuration are in place.
 - Phase 2: Restaurant UI complete on `v2`. Dashboard, Orders, Kitchen, Tables, Inventory, Staff, Alerts, Analytics, and Settings use mock data and local UI state.
 - Phase 3: Automation engine complete on `v2`. The Go API now provides an in-memory event bus, bounded worker queue, retry policy, scheduler, order pipeline, and queue/event inspection endpoints.
-- Phase 4+: Not started. Provider integrations, persistent storage, printer infrastructure, automation dashboard, analytics persistence, and AI remain separate future phases.
+- Phase 4: Provider boundary complete on `v2`. A registry and collector isolate provider-specific order intake behind one interface; only a local mock provider is enabled.
+- Phase 5+: Not started. Persistent storage, printer infrastructure, automation dashboard, analytics persistence, and AI remain separate future phases.
 
 ## Project Structure
 
@@ -43,6 +44,7 @@ A web operations console for restaurants to coordinate live orders, tables, kitc
 ├── internal/
 │   ├── api/              # Chi router, handlers, middleware
 │   ├── automation/       # Phase 3 event bus, queues, retries, workers
+│   ├── integrations/     # Phase 4 provider interface, registry, mock adapter
 │   ├── config/           # Viper-based configuration
 │   └── logger/           # Zerolog setup
 ├── migrations/           # SQL migration files
@@ -94,6 +96,7 @@ The Go API starts on port `8080` and exposes:
 |---|---|
 | `GET /health` | Liveness probe |
 | `GET /ready` | Readiness probe |
+| `GET /api/v1/integrations` | List registered provider health |
 | `POST /api/v1/automation/orders` | Submit an order to the Phase 3 pipeline |
 | `GET /api/v1/automation/events` | Inspect the in-memory event stream |
 | `GET /api/v1/automation/queue` | Inspect queue depth and worker metrics |
@@ -101,7 +104,7 @@ The Go API starts on port `8080` and exposes:
 
 PostgreSQL and the API can be started together with Docker Compose. Configuration is loaded from environment variables or a `.env` file; secrets are never committed.
 
-Phase 3 intentionally keeps order processing in memory. It demonstrates collection, normalization, validation, persistence boundary, event publication, and queueing without claiming database or printer delivery. State resets when the Go API restarts; PostgreSQL persistence, provider adapters, and ESC/POS infrastructure are later phases.
+Phase 4 keeps provider intake behind the `Provider` interface and forwards collected orders to the automation engine sink. The default `mock` provider is for local development only; no third-party network credentials or provider APIs are implemented yet. Phase 3/4 state resets when the Go API restarts.
 
 ## Deployment
 
