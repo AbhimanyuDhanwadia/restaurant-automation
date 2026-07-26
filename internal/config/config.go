@@ -17,17 +17,24 @@ import (
 // All fields are loaded from environment variables (or a .env file).
 // Viper maps ENV_VAR_NAME → struct field via mapstructure tags.
 type Config struct {
-	Server   ServerConfig
-	Database DatabaseConfig
-	Printers PrintersConfig
-	Auth     AuthConfig
-	Log      LogConfig
+	Server       ServerConfig
+	Database     DatabaseConfig
+	Printers     PrintersConfig
+	Integrations IntegrationsConfig
+	Auth         AuthConfig
+	Log          LogConfig
 }
 
 // PrintersConfig holds optional physical network-printer settings.
 type PrintersConfig struct {
 	KitchenAddress string        `mapstructure:"PRINTER_KITCHEN_ADDRESS"`
 	ConnectTimeout time.Duration `mapstructure:"PRINTER_CONNECT_TIMEOUT"`
+}
+
+// IntegrationsConfig enables the generic signed webhook provider.
+type IntegrationsConfig struct {
+	WebhookProviderName string `mapstructure:"WEBHOOK_PROVIDER_NAME"`
+	WebhookSecret       string `mapstructure:"WEBHOOK_PROVIDER_SECRET"`
 }
 
 // ServerConfig holds HTTP server tuning parameters.
@@ -115,6 +122,9 @@ func Load() (*Config, error) {
 	}
 	if cfg.Auth.Required && strings.TrimSpace(cfg.Auth.SupabaseJWTSecret) == "" {
 		return nil, fmt.Errorf("config: SUPABASE_JWT_SECRET is required when AUTH_REQUIRED=true")
+	}
+	if (cfg.Integrations.WebhookProviderName == "") != (cfg.Integrations.WebhookSecret == "") {
+		return nil, fmt.Errorf("config: WEBHOOK_PROVIDER_NAME and WEBHOOK_PROVIDER_SECRET must be set together")
 	}
 
 	return &cfg, nil

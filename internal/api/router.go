@@ -42,6 +42,7 @@ func NewRouter(cfg *config.Config, log zerolog.Logger, engine *automation.Engine
 	// 3. System Routes (Unauthenticated)
 	r.Get("/health", handlers.Health())
 	r.Get("/ready", handlers.Ready())
+	r.Post("/api/v1/webhooks/{provider}", handlers.ReceiveWebhook(registry))
 
 	// 4. API Routes (Will be authenticated later)
 	r.Route("/api/v1", func(r chi.Router) {
