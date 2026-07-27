@@ -542,6 +542,36 @@ h2 {
 
 .order-create-form .primary-button { min-height: 42px; }
 
+.table-create-form {
+  display: grid;
+  grid-template-columns: minmax(100px, 0.6fr) minmax(90px, 0.45fr) minmax(150px, 1fr) minmax(150px, 1fr) auto;
+  align-items: end;
+  gap: 12px;
+}
+
+.table-create-form label {
+  display: grid;
+  gap: 6px;
+  color: #62706b;
+  font-size: 0.78rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.table-create-form input {
+  min-width: 0;
+  min-height: 42px;
+  padding: 0 12px;
+  border: 1px solid #d9d4ca;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #19211d;
+  font: inherit;
+  text-transform: none;
+}
+
+.table-create-form .primary-button { min-height: 42px; }
+
 .order-status-control {
   display: grid;
   gap: 5px;
@@ -1329,11 +1359,15 @@ h2 {
 
   .order-create-form { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 
+  .table-create-form { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+
   .filter-control select {
     width: 100%;
   }
 
   .order-create-form { grid-template-columns: 1fr; }
+
+  .table-create-form { grid-template-columns: 1fr; }
 
   .order-row {
     grid-template-columns: 1fr;

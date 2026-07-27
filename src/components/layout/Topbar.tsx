@@ -11,7 +11,6 @@ import { useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import type { Session } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase";
-import { useTablesStore } from "@/stores/tables";
 import { useInventoryStore } from "@/stores/inventory";
 import { useUIStore } from "@/stores/ui";
 
@@ -25,9 +24,7 @@ export function Topbar({ eyebrow, title, session }: TopbarProps) {
   const [createOpen, setCreateOpen] = useState(false);
   const searchTerm = useUIStore((s) => s.searchTerm);
   const setSearchTerm = useUIStore((s) => s.setSearchTerm);
-  const addTable = useTablesStore((s) => s.addTable);
   const addInventoryItem = useInventoryStore((s) => s.addItem);
-  const tables = useTablesStore((s) => s.tables);
   const items = useInventoryStore((s) => s.items);
   const navigate = useNavigate();
 
@@ -40,13 +37,9 @@ export function Topbar({ eyebrow, title, session }: TopbarProps) {
       return;
     }
     if (type === "table") {
-      addTable({
-        id: `T${tables.length + 1}`,
-        seats: 2,
-        guest: "Available",
-        reservation: "Walk-in",
-        status: "Available",
-      });
+      navigate({ to: "/tables" });
+      setCreateOpen(false);
+      return;
     }
     if (type === "inventory") {
       addInventoryItem({

@@ -16,6 +16,7 @@ import (
 	"github.com/restaurantautomation/api/internal/intelligence"
 	"github.com/restaurantautomation/api/internal/orders"
 	"github.com/restaurantautomation/api/internal/printers"
+	"github.com/restaurantautomation/api/internal/tables"
 	"github.com/rs/zerolog"
 )
 
@@ -31,7 +32,7 @@ func TestHealthEndpoint(t *testing.T) {
 	engine.Start(context.Background())
 	defer engine.Close()
 	printerManager := printers.NewManager(printers.ESCPosFormatter{}, 1)
-	router := api.NewRouter(cfg, log, engine, integrations.NewRegistry(), printerManager, analytics.NewService(engine, printerManager), intelligence.NewService(engine, printerManager), orders.NewService(orders.NewMemoryRepository()))
+	router := api.NewRouter(cfg, log, engine, integrations.NewRegistry(), printerManager, analytics.NewService(engine, printerManager), intelligence.NewService(engine, printerManager), orders.NewService(orders.NewMemoryRepository()), tables.NewService(tables.NewMemoryRepository()))
 
 	req, err := http.NewRequest("GET", "/health", nil)
 	if err != nil {
@@ -67,7 +68,7 @@ func TestReadyEndpoint(t *testing.T) {
 	engine.Start(context.Background())
 	defer engine.Close()
 	printerManager := printers.NewManager(printers.ESCPosFormatter{}, 1)
-	router := api.NewRouter(cfg, log, engine, integrations.NewRegistry(), printerManager, analytics.NewService(engine, printerManager), intelligence.NewService(engine, printerManager), orders.NewService(orders.NewMemoryRepository()))
+	router := api.NewRouter(cfg, log, engine, integrations.NewRegistry(), printerManager, analytics.NewService(engine, printerManager), intelligence.NewService(engine, printerManager), orders.NewService(orders.NewMemoryRepository()), tables.NewService(tables.NewMemoryRepository()))
 
 	req, err := http.NewRequest("GET", "/ready", nil)
 	if err != nil {
@@ -97,7 +98,7 @@ func TestAutomationOrderEndpoint(t *testing.T) {
 	engine.Start(context.Background())
 	defer engine.Close()
 	printerManager := printers.NewManager(printers.ESCPosFormatter{}, 1)
-	router := api.NewRouter(cfg, zerolog.Nop(), engine, integrations.NewRegistry(), printerManager, analytics.NewService(engine, printerManager), intelligence.NewService(engine, printerManager), orders.NewService(orders.NewMemoryRepository()))
+	router := api.NewRouter(cfg, zerolog.Nop(), engine, integrations.NewRegistry(), printerManager, analytics.NewService(engine, printerManager), intelligence.NewService(engine, printerManager), orders.NewService(orders.NewMemoryRepository()), tables.NewService(tables.NewMemoryRepository()))
 
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/automation/orders", bytes.NewBufferString(`{"order_id":"ORD-100"}`))
 	req.Header.Set("Content-Type", "application/json")
@@ -114,12 +115,36 @@ func TestAutomationOrderEndpointValidatesOrderID(t *testing.T) {
 	engine.Start(context.Background())
 	defer engine.Close()
 	printerManager := printers.NewManager(printers.ESCPosFormatter{}, 1)
-	router := api.NewRouter(cfg, zerolog.Nop(), engine, integrations.NewRegistry(), printerManager, analytics.NewService(engine, printerManager), intelligence.NewService(engine, printerManager), orders.NewService(orders.NewMemoryRepository()))
+	router := api.NewRouter(cfg, zerolog.Nop(), engine, integrations.NewRegistry(), printerManager, analytics.NewService(engine, printerManager), intelligence.NewService(engine, printerManager), orders.NewService(orders.NewMemoryRepository()), tables.NewService(tables.NewMemoryRepository()))
 
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/automation/orders", bytes.NewBufferString(`{}`))
 	rr := httptest.NewRecorder()
 	router.ServeHTTP(rr, req)
 	if rr.Code != http.StatusBadRequest {
 		t.Fatalf("status = %d, want %d", rr.Code, http.StatusBadRequest)
+	}
+}
+
+func TestTableEndpoints(t *testing.T) {
+	cfg := &config.Config{Server: config.ServerConfig{CORSOrigins: []string{"*"}}}
+	engine := automation.NewEngine(1, 10, automation.RetryPolicy{MaxAttempts: 1})
+	engine.Start(context.Background())
+	defer engine.Close()
+	printerManager := printers.NewManager(printers.ESCPosFormatter{}, 1)
+	router := api.NewRouter(cfg, zerolog.Nop(), engine, integrations.NewRegistry(), printerManager, analytics.NewService(engine, printerManager), intelligence.NewService(engine, printerManager), orders.NewService(orders.NewMemoryRepository()), tables.NewService(tables.NewMemoryRepository()))
+
+	create := httptest.NewRequest(http.MethodPost, "/api/v1/tables", bytes.NewBufferString(`{"id":"T1","seats":4}`))
+	create.Header.Set("Content-Type", "application/json")
+	created := httptest.NewRecorder()
+	router.ServeHTTP(created, create)
+	if created.Code != http.StatusCreated {
+		t.Fatalf("create status = %d, want %d", created.Code, http.StatusCreated)
+	}
+
+	list := httptest.NewRequest(http.MethodGet, "/api/v1/tables", nil)
+	listed := httptest.NewRecorder()
+	router.ServeHTTP(listed, list)
+	if listed.Code != http.StatusOK {
+		t.Fatalf("list status = %d, want %d", listed.Code, http.StatusOK)
 	}
 }
