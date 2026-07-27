@@ -8,9 +8,9 @@
 
 import { LogOut, Plus, Search, X } from "lucide-react";
 import { useState } from "react";
+import { useNavigate } from "@tanstack/react-router";
 import type { Session } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase";
-import { useOrdersStore } from "@/stores/orders";
 import { useTablesStore } from "@/stores/tables";
 import { useInventoryStore } from "@/stores/inventory";
 import { useUIStore } from "@/stores/ui";
@@ -25,25 +25,19 @@ export function Topbar({ eyebrow, title, session }: TopbarProps) {
   const [createOpen, setCreateOpen] = useState(false);
   const searchTerm = useUIStore((s) => s.searchTerm);
   const setSearchTerm = useUIStore((s) => s.setSearchTerm);
-  const addOrder = useOrdersStore((s) => s.addOrder);
   const addTable = useTablesStore((s) => s.addTable);
   const addInventoryItem = useInventoryStore((s) => s.addItem);
-  const orders = useOrdersStore((s) => s.orders);
   const tables = useTablesStore((s) => s.tables);
   const items = useInventoryStore((s) => s.items);
+  const navigate = useNavigate();
 
   const signOut = () => supabase?.auth.signOut();
 
   const createQuickAction = (type: "order" | "table" | "inventory") => {
     if (type === "order") {
-      addOrder({
-        id: `ORD-${1842 + orders.length}`,
-        table: "New table",
-        channel: "Web",
-        items: "New order",
-        eta: "15 min",
-        status: "Preparing",
-      });
+      navigate({ to: "/orders" });
+      setCreateOpen(false);
+      return;
     }
     if (type === "table") {
       addTable({
