@@ -1,53 +1,64 @@
-import { ChefHat, Clock3, Flame } from "lucide-react";
+import { ChefHat, Clock3, Flame, RefreshCw } from "lucide-react";
 import { useMemo, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Panel, PanelHeading } from "@/components/ui/Panel";
 import { StatusPill } from "@/components/ui/StatusPill";
+import {
+  listOrders,
+  updateOrderStatus,
+  type Order,
+  type OrderStatus,
+} from "@/features/orders/api";
 
-type TicketStatus = "Queued" | "Cooking" | "Ready";
-type Station = "Grill" | "Cold line" | "Pastry";
+type KitchenStatus = "all" | "received" | "preparing" | "ready";
 
-const STATIONS = [
-  { name: "Grill", load: "At capacity", active: 8, capacity: 8, tone: "critical" },
-  { name: "Cold line", load: "Steady", active: 4, capacity: 6, tone: "healthy" },
-  { name: "Pastry", load: "Available", active: 2, capacity: 5, tone: "healthy" },
-];
+const kitchenStatuses: Exclude<KitchenStatus, "all">[] = ["received", "preparing", "ready"];
 
-const INITIAL_TICKETS: Array<{
-  id: string;
-  order: string;
-  table: string;
-  items: string;
-  station: Station;
-  elapsed: string;
-  status: TicketStatus;
-}> = [
-  { id: "K-1842", order: "ORD-1842", table: "Table 12", items: "2 mains, 1 starter", station: "Grill", elapsed: "7 min", status: "Cooking" },
-  { id: "K-1843", order: "ORD-1843", table: "Delivery", items: "4 entrees", station: "Cold line", elapsed: "3 min", status: "Queued" },
-  { id: "K-1844", order: "ORD-1844", table: "Table 3", items: "1 tasting menu", station: "Pastry", elapsed: "18 min", status: "Cooking" },
-  { id: "K-1845", order: "ORD-1845", table: "Pickup", items: "3 bowls, 2 drinks", station: "Cold line", elapsed: "11 min", status: "Ready" },
-];
+function kitchenLabel(status: Exclude<KitchenStatus, "all">) {
+  return ({ received: "Queued", preparing: "Cooking", ready: "Ready" })[status];
+}
 
-const STATUS_CYCLE: Record<TicketStatus, TicketStatus> = {
-  Queued: "Cooking",
-  Cooking: "Ready",
-  Ready: "Queued",
-};
+function ticketVariant(status: Exclude<KitchenStatus, "all">) {
+  return `ticket-${({ received: "queued", preparing: "cooking", ready: "ready" })[status]}`;
+}
+
+function orderSummary(order: Order) {
+  return order.items.map((item) => `${item.quantity}x ${item.name}`).join(", ");
+}
+
+function elapsedTime(createdAt: string) {
+  const minutes = Math.max(0, Math.floor((Date.now() - new Date(createdAt).getTime()) / 60_000));
+  return minutes < 1 ? "Just now" : `${minutes} min`;
+}
+
+function nextKitchenStatus(status: Exclude<KitchenStatus, "all">): OrderStatus | null {
+  if (status === "received") return "preparing";
+  if (status === "preparing") return "ready";
+  return null;
+}
 
 export function KitchenPage() {
-  const [tickets, setTickets] = useState(INITIAL_TICKETS);
-  const [stationFilter, setStationFilter] = useState<Station | "All">("All");
+  const [statusFilter, setStatusFilter] = useState<KitchenStatus>("all");
+  const queryClient = useQueryClient();
+  const ordersQuery = useQuery({ queryKey: ["orders"], queryFn: listOrders });
+  const advanceMutation = useMutation({
+    mutationFn: ({ id, status }: { id: string; status: OrderStatus }) => updateOrderStatus(id, status),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["orders"] }),
+  });
 
-  const directory = useMemo(
-    () => stationFilter === "All" ? tickets : tickets.filter((ticket) => ticket.station === stationFilter),
-    [stationFilter, tickets],
+  const activeOrders = useMemo(
+    () => (ordersQuery.data ?? []).filter((order) => kitchenStatuses.includes(order.status as Exclude<KitchenStatus, "all">)),
+    [ordersQuery.data],
   );
-
-  const cycleTicket = (ticketId: string) => {
-    setTickets((current) => current.map((ticket) => ticket.id === ticketId
-      ? { ...ticket, status: STATUS_CYCLE[ticket.status] }
-      : ticket));
-  };
+  const tickets = useMemo(
+    () => (statusFilter === "all" ? activeOrders : activeOrders.filter((order) => order.status === statusFilter)),
+    [activeOrders, statusFilter],
+  );
+  const counts = useMemo(
+    () => Object.fromEntries(kitchenStatuses.map((status) => [status, activeOrders.filter((order) => order.status === status).length])) as Record<Exclude<KitchenStatus, "all">, number>,
+    [activeOrders],
+  );
 
   return (
     <section className="kitchen-workspace">
@@ -57,46 +68,69 @@ export function KitchenPage() {
           <h2>Kitchen Queue</h2>
         </div>
         <label className="filter-control">
-          <span>Station</span>
-          <select value={stationFilter} onChange={(event) => setStationFilter(event.target.value as Station | "All")}>
-            <option value="All">All stations</option>
-            <option value="Grill">Grill</option>
-            <option value="Cold line">Cold line</option>
-            <option value="Pastry">Pastry</option>
+          <span>Status</span>
+          <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as KitchenStatus)}>
+            <option value="all">All active tickets</option>
+            {kitchenStatuses.map((status) => <option key={status} value={status}>{kitchenLabel(status)}</option>)}
           </select>
         </label>
       </div>
 
-      <section className="kitchen-station-grid" aria-label="Kitchen station load">
-        {STATIONS.map((station) => (
-          <article className="stat-card kitchen-station-card" key={station.name}>
-            {station.name === "Grill" ? <Flame size={22} aria-hidden="true" /> : <ChefHat size={22} aria-hidden="true" />}
-            <div>
-              <span>{station.name}</span>
-              <strong>{station.active}/{station.capacity}</strong>
-              <small className={`station-load ${station.tone}`}>{station.load}</small>
-            </div>
-          </article>
-        ))}
+      <section className="kitchen-station-grid" aria-label="Kitchen queue summary">
+        {kitchenStatuses.map((status) => {
+          const count = counts[status];
+          return (
+            <article className="stat-card kitchen-station-card" key={status}>
+              {status === "preparing" ? <Flame size={22} aria-hidden="true" /> : <ChefHat size={22} aria-hidden="true" />}
+              <div>
+                <span>{kitchenLabel(status)}</span>
+                <strong>{count}</strong>
+                <small className={`station-load ${count > 5 ? "critical" : "healthy"}`}>{count === 1 ? "1 order" : `${count} orders`}</small>
+              </div>
+            </article>
+          );
+        })}
       </section>
 
+      {ordersQuery.isError && (
+        <div className="orders-api-error" role="alert">
+          <span>{ordersQuery.error.message}</span>
+          <button type="button" className="text-button" onClick={() => ordersQuery.refetch()}>
+            <RefreshCw size={15} aria-hidden="true" /> Retry
+          </button>
+        </div>
+      )}
+      {advanceMutation.error && <p className="orders-api-error" role="alert">{advanceMutation.error.message}</p>}
+
       <Panel label="Kitchen tickets">
-        <PanelHeading eyebrow="Active tickets" title={`${directory.length} tickets in queue`} />
+        <PanelHeading eyebrow="Active tickets" title={`${tickets.length} tickets in queue`} />
         <div className="kitchen-ticket-list">
-          {directory.map((ticket) => (
-            <article className="kitchen-ticket" key={ticket.id}>
-              <div className="kitchen-ticket-main">
-                <strong>{ticket.order}</strong>
-                <span>{ticket.table} · {ticket.items}</span>
-              </div>
-              <span className="kitchen-station-label">{ticket.station}</span>
-              <span className="eta"><Clock3 size={16} aria-hidden="true" />{ticket.elapsed}</span>
-              <StatusPill variant={`ticket-${ticket.status.toLowerCase()}`} onClick={() => cycleTicket(ticket.id)}>
-                {ticket.status}
-              </StatusPill>
-            </article>
-          ))}
-          {directory.length === 0 && <EmptyState message="No tickets match this station." />}
+          {ordersQuery.isPending && <EmptyState message="Loading kitchen tickets..." />}
+          {tickets.map((order) => {
+            const nextStatus = nextKitchenStatus(order.status as Exclude<KitchenStatus, "all">);
+            return (
+              <article className="kitchen-ticket" key={order.id}>
+                <div className="kitchen-ticket-main">
+                  <strong>{order.id.slice(0, 8)}</strong>
+                  <span>{order.channel} · {orderSummary(order)}</span>
+                </div>
+                <span className="kitchen-station-label">{order.notes || "No preparation notes"}</span>
+                <span className="eta"><Clock3 size={16} aria-hidden="true" />{elapsedTime(order.created_at)}</span>
+                <StatusPill variant={ticketVariant(order.status as Exclude<KitchenStatus, "all">)}>{kitchenLabel(order.status as Exclude<KitchenStatus, "all">)}</StatusPill>
+                {nextStatus && (
+                  <button
+                    type="button"
+                    className="text-button kitchen-ticket-action"
+                    disabled={advanceMutation.isPending}
+                    onClick={() => advanceMutation.mutate({ id: order.id, status: nextStatus })}
+                  >
+                    {nextStatus === "preparing" ? "Start preparing" : "Mark ready"}
+                  </button>
+                )}
+              </article>
+            );
+          })}
+          {!ordersQuery.isPending && !ordersQuery.isError && tickets.length === 0 && <EmptyState message="No tickets match this status." />}
         </div>
       </Panel>
     </section>

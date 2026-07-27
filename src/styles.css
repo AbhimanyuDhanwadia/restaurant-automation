@@ -746,7 +746,7 @@ h2 {
 
 .kitchen-ticket {
   display: grid;
-  grid-template-columns: minmax(0, 1.4fr) 0.8fr auto auto;
+  grid-template-columns: minmax(0, 1.4fr) minmax(110px, 0.8fr) auto auto auto;
   align-items: center;
   gap: 16px;
   min-height: 72px;
@@ -779,6 +779,11 @@ h2 {
 .ticket-ready {
   background: #e5f6ea;
   color: #1f6b36;
+}
+
+.kitchen-ticket-action {
+  justify-self: end;
+  white-space: nowrap;
 }
 
 .analytics-grid {
@@ -1339,6 +1344,8 @@ h2 {
     grid-template-columns: 1fr;
     align-items: start;
   }
+
+  .kitchen-ticket-action { justify-self: start; }
 
   .status {
     justify-self: start;
