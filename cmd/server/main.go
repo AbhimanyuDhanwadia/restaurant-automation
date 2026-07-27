@@ -10,6 +10,8 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/jackc/pgx/v5/pgxpool"
+
 	"github.com/restaurantautomation/api/internal/analytics"
 	"github.com/restaurantautomation/api/internal/api"
 	"github.com/restaurantautomation/api/internal/automation"
@@ -35,6 +37,7 @@ func main() {
 
 	// 3. Open PostgreSQL and apply versioned migrations when configured.
 	var eventPersister *database.EventPersister
+	var databasePool *pgxpool.Pool
 	if cfg.Database.DSN != "" {
 		startupCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 		pool, err := database.Open(startupCtx, cfg.Database)
@@ -46,6 +49,7 @@ func main() {
 			log.Fatal().Err(err).Msg("database startup failed")
 		}
 		defer pool.Close()
+		databasePool = pool
 		eventPersister = database.NewEventPersister(database.NewEventStore(pool), log)
 		log.Info().Msg("database persistence enabled")
 	} else {
@@ -87,7 +91,7 @@ func main() {
 	intelligenceService := intelligence.NewService(engine, printerManager)
 	intelligenceService.Start(context.Background())
 	defer intelligenceService.Close()
-	router := api.NewRouter(cfg, log, engine, providers, printerManager, analyticsService, intelligenceService)
+	router := api.NewRouter(cfg, log, engine, providers, printerManager, analyticsService, intelligenceService, databasePool)
 
 	// 5. Setup HTTP Server
 	server := &http.Server{

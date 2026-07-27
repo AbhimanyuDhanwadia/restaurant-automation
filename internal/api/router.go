@@ -20,7 +20,7 @@ import (
 
 // NewRouter constructs the Chi router with the standard middleware stack
 // and registers all API routes.
-func NewRouter(cfg *config.Config, log zerolog.Logger, engine *automation.Engine, registry *integrations.Registry, printerManager *printers.Manager, analyticsService *analytics.Service, intelligenceService *intelligence.Service) *chi.Mux {
+func NewRouter(cfg *config.Config, log zerolog.Logger, engine *automation.Engine, registry *integrations.Registry, printerManager *printers.Manager, analyticsService *analytics.Service, intelligenceService *intelligence.Service, readiness ...handlers.ReadinessChecker) *chi.Mux {
 	r := chi.NewRouter()
 
 	// 1. Basic Middleware
@@ -41,7 +41,11 @@ func NewRouter(cfg *config.Config, log zerolog.Logger, engine *automation.Engine
 
 	// 3. System Routes (Unauthenticated)
 	r.Get("/health", handlers.Health())
-	r.Get("/ready", handlers.Ready())
+	var checker handlers.ReadinessChecker
+	if len(readiness) > 0 {
+		checker = readiness[0]
+	}
+	r.Get("/ready", handlers.ReadyWithCheck(checker))
 	r.Post("/api/v1/webhooks/{provider}", handlers.ReceiveWebhook(registry))
 
 	// 4. API Routes (Will be authenticated later)
