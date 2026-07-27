@@ -35,6 +35,7 @@ type PrintersConfig struct {
 type IntegrationsConfig struct {
 	WebhookProviderName string `mapstructure:"WEBHOOK_PROVIDER_NAME"`
 	WebhookSecret       string `mapstructure:"WEBHOOK_PROVIDER_SECRET"`
+	SwiggyWebhookSecret string `mapstructure:"SWIGGY_WEBHOOK_SECRET"`
 }
 
 // ServerConfig holds HTTP server tuning parameters.

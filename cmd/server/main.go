@@ -66,6 +66,10 @@ func main() {
 		providers.Register(integrations.NewWebhookProvider(cfg.Integrations.WebhookProviderName, cfg.Integrations.WebhookSecret, 100))
 		log.Info().Str("provider", cfg.Integrations.WebhookProviderName).Msg("signed webhook provider enabled")
 	}
+	if cfg.Integrations.SwiggyWebhookSecret != "" {
+		providers.Register(integrations.NewWebhookProvider("swiggy", cfg.Integrations.SwiggyWebhookSecret, 100))
+		log.Info().Msg("Swiggy signed webhook provider enabled")
+	}
 	if err := providers.StartCollectors(context.Background(), func(ctx context.Context, order integrations.Order) error { return engine.SubmitOrder(ctx, order.ID) }); err != nil {
 		log.Fatal().Err(err).Msg("start provider collectors")
 	}
