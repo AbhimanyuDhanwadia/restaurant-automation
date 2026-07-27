@@ -20,6 +20,7 @@ import (
 	"github.com/restaurantautomation/api/internal/integrations"
 	"github.com/restaurantautomation/api/internal/intelligence"
 	"github.com/restaurantautomation/api/internal/logger"
+	"github.com/restaurantautomation/api/internal/orders"
 	"github.com/restaurantautomation/api/internal/printers"
 )
 
@@ -38,6 +39,7 @@ func main() {
 	// 3. Open PostgreSQL and apply versioned migrations when configured.
 	var eventPersister *database.EventPersister
 	var databasePool *pgxpool.Pool
+	orderRepository := orders.Repository(orders.NewMemoryRepository())
 	if cfg.Database.DSN != "" {
 		startupCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 		pool, err := database.Open(startupCtx, cfg.Database)
@@ -50,6 +52,7 @@ func main() {
 		}
 		defer pool.Close()
 		databasePool = pool
+		orderRepository = orders.NewPostgresRepository(pool)
 		eventPersister = database.NewEventPersister(database.NewEventStore(pool), log)
 		log.Info().Msg("database persistence enabled")
 	} else {
@@ -89,9 +92,10 @@ func main() {
 	defer printerManager.Close()
 	analyticsService := analytics.NewService(engine, printerManager)
 	intelligenceService := intelligence.NewService(engine, printerManager)
+	orderService := orders.NewService(orderRepository)
 	intelligenceService.Start(context.Background())
 	defer intelligenceService.Close()
-	router := api.NewRouter(cfg, log, engine, providers, printerManager, analyticsService, intelligenceService, databasePool)
+	router := api.NewRouter(cfg, log, engine, providers, printerManager, analyticsService, intelligenceService, orderService, databasePool)
 
 	// 5. Setup HTTP Server
 	server := &http.Server{
