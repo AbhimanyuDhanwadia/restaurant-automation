@@ -19,6 +19,7 @@ import (
 	"github.com/restaurantautomation/api/internal/database"
 	"github.com/restaurantautomation/api/internal/integrations"
 	"github.com/restaurantautomation/api/internal/intelligence"
+	"github.com/restaurantautomation/api/internal/inventory"
 	"github.com/restaurantautomation/api/internal/logger"
 	"github.com/restaurantautomation/api/internal/orders"
 	"github.com/restaurantautomation/api/internal/printers"
@@ -42,6 +43,7 @@ func main() {
 	var databasePool *pgxpool.Pool
 	orderRepository := orders.Repository(orders.NewMemoryRepository())
 	tableRepository := tables.Repository(tables.NewMemoryRepository())
+	inventoryRepository := inventory.Repository(inventory.NewMemoryRepository())
 	if cfg.Database.DSN != "" {
 		startupCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 		pool, err := database.Open(startupCtx, cfg.Database)
@@ -56,6 +58,7 @@ func main() {
 		databasePool = pool
 		orderRepository = orders.NewPostgresRepository(pool)
 		tableRepository = tables.NewPostgresRepository(pool)
+		inventoryRepository = inventory.NewPostgresRepository(pool)
 		eventPersister = database.NewEventPersister(database.NewEventStore(pool), log)
 		log.Info().Msg("database persistence enabled")
 	} else {
@@ -97,9 +100,10 @@ func main() {
 	intelligenceService := intelligence.NewService(engine, printerManager)
 	orderService := orders.NewService(orderRepository)
 	tableService := tables.NewService(tableRepository)
+	inventoryService := inventory.NewService(inventoryRepository)
 	intelligenceService.Start(context.Background())
 	defer intelligenceService.Close()
-	router := api.NewRouter(cfg, log, engine, providers, printerManager, analyticsService, intelligenceService, orderService, tableService, databasePool)
+	router := api.NewRouter(cfg, log, engine, providers, printerManager, analyticsService, intelligenceService, orderService, tableService, inventoryService, databasePool)
 
 	// 5. Setup HTTP Server
 	server := &http.Server{

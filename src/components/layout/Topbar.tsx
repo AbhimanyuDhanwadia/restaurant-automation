@@ -11,7 +11,6 @@ import { useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import type { Session } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase";
-import { useInventoryStore } from "@/stores/inventory";
 import { useUIStore } from "@/stores/ui";
 
 interface TopbarProps {
@@ -24,8 +23,6 @@ export function Topbar({ eyebrow, title, session }: TopbarProps) {
   const [createOpen, setCreateOpen] = useState(false);
   const searchTerm = useUIStore((s) => s.searchTerm);
   const setSearchTerm = useUIStore((s) => s.setSearchTerm);
-  const addInventoryItem = useInventoryStore((s) => s.addItem);
-  const items = useInventoryStore((s) => s.items);
   const navigate = useNavigate();
 
   const signOut = () => supabase?.auth.signOut();
@@ -42,15 +39,9 @@ export function Topbar({ eyebrow, title, session }: TopbarProps) {
       return;
     }
     if (type === "inventory") {
-      addInventoryItem({
-        id: `INV-${String(items.length + 1).padStart(2, "0")}`,
-        item: "New inventory item",
-        category: "Uncategorized",
-        onHand: "0 units",
-        par: "0 units",
-        supplier: "Unassigned",
-        status: "Low Stock",
-      });
+      navigate({ to: "/inventory" });
+      setCreateOpen(false);
+      return;
     }
     setCreateOpen(false);
   };
