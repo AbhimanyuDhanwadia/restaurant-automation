@@ -6,6 +6,7 @@ import (
 	"github.com/go-chi/cors"
 	"github.com/rs/zerolog"
 
+	"github.com/restaurantautomation/api/internal/alerts"
 	"github.com/restaurantautomation/api/internal/analytics"
 	"github.com/restaurantautomation/api/internal/api/handlers"
 	appm "github.com/restaurantautomation/api/internal/api/middleware"
@@ -22,7 +23,7 @@ import (
 
 // NewRouter constructs the Chi router with the standard middleware stack
 // and registers all API routes.
-func NewRouter(cfg *config.Config, log zerolog.Logger, engine *automation.Engine, registry *integrations.Registry, printerManager *printers.Manager, analyticsService *analytics.Service, intelligenceService *intelligence.Service, orderService *orders.Service, tableService *tables.Service, inventoryService *inventory.Service, staffService *staff.Service, readiness ...handlers.ReadinessChecker) *chi.Mux {
+func NewRouter(cfg *config.Config, log zerolog.Logger, engine *automation.Engine, registry *integrations.Registry, printerManager *printers.Manager, analyticsService *analytics.Service, intelligenceService *intelligence.Service, orderService *orders.Service, tableService *tables.Service, inventoryService *inventory.Service, staffService *staff.Service, alertService *alerts.Service, readiness ...handlers.ReadinessChecker) *chi.Mux {
 	r := chi.NewRouter()
 
 	// 1. Basic Middleware
@@ -84,6 +85,9 @@ func NewRouter(cfg *config.Config, log zerolog.Logger, engine *automation.Engine
 		r.Patch("/staff/tasks/{taskID}/complete", handlers.CompleteShiftTask(staffService))
 		r.Get("/staff/handoff", handlers.GetShiftHandoff(staffService))
 		r.Put("/staff/handoff", handlers.SaveShiftHandoff(staffService))
+		r.Get("/alerts", handlers.ListAlerts(alertService))
+		r.Post("/alerts", handlers.CreateAlert(alertService))
+		r.Patch("/alerts/{alertID}/acknowledge", handlers.AcknowledgeAlert(alertService))
 	})
 
 	return r

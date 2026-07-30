@@ -12,6 +12,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"github.com/restaurantautomation/api/internal/alerts"
 	"github.com/restaurantautomation/api/internal/analytics"
 	"github.com/restaurantautomation/api/internal/api"
 	"github.com/restaurantautomation/api/internal/automation"
@@ -46,6 +47,7 @@ func main() {
 	tableRepository := tables.Repository(tables.NewMemoryRepository())
 	inventoryRepository := inventory.Repository(inventory.NewMemoryRepository())
 	staffRepository := staff.Repository(staff.NewMemoryRepository())
+	alertRepository := alerts.Repository(alerts.NewMemoryRepository())
 	if cfg.Database.DSN != "" {
 		startupCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 		pool, err := database.Open(startupCtx, cfg.Database)
@@ -62,6 +64,7 @@ func main() {
 		tableRepository = tables.NewPostgresRepository(pool)
 		inventoryRepository = inventory.NewPostgresRepository(pool)
 		staffRepository = staff.NewPostgresRepository(pool)
+		alertRepository = alerts.NewPostgresRepository(pool)
 		eventPersister = database.NewEventPersister(database.NewEventStore(pool), log)
 		log.Info().Msg("database persistence enabled")
 	} else {
@@ -105,9 +108,10 @@ func main() {
 	tableService := tables.NewService(tableRepository)
 	inventoryService := inventory.NewService(inventoryRepository)
 	staffService := staff.NewService(staffRepository)
+	alertService := alerts.NewService(alertRepository)
 	intelligenceService.Start(context.Background())
 	defer intelligenceService.Close()
-	router := api.NewRouter(cfg, log, engine, providers, printerManager, analyticsService, intelligenceService, orderService, tableService, inventoryService, staffService, databasePool)
+	router := api.NewRouter(cfg, log, engine, providers, printerManager, analyticsService, intelligenceService, orderService, tableService, inventoryService, staffService, alertService, databasePool)
 
 	// 5. Setup HTTP Server
 	server := &http.Server{

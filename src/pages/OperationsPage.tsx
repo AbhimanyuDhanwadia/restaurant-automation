@@ -7,9 +7,9 @@ import { useNavigate } from "@tanstack/react-router";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Panel, PanelHeading } from "@/components/ui/Panel";
 import { StatusPill } from "@/components/ui/StatusPill";
+import { acknowledgeAlert, listAlerts } from "@/features/alerts/api";
 import { listOrders, type Order, type OrderStatus } from "@/features/orders/api";
 import { completeShiftTask, listShiftTasks } from "@/features/staff/api";
-import { useAlertsStore } from "@/stores/alerts";
 import { useUIStore } from "@/stores/ui";
 
 const activeStatuses: OrderStatus[] = ["received", "preparing", "ready"];
@@ -29,18 +29,22 @@ function orderSummary(order: Order) {
 }
 
 export function OperationsPage() {
-  const alerts = useAlertsStore((state) => state.alerts);
-  const acknowledgeAlert = useAlertsStore((state) => state.acknowledge);
   const searchTerm = useUIStore((state) => state.searchTerm);
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const ordersQuery = useQuery({ queryKey: ["orders"], queryFn: listOrders });
+  const alertsQuery = useQuery({ queryKey: ["alerts"], queryFn: listAlerts });
   const tasksQuery = useQuery({ queryKey: ["staff", "tasks"], queryFn: listShiftTasks });
+  const acknowledge = useMutation({
+    mutationFn: acknowledgeAlert,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["alerts"] }),
+  });
   const completeTask = useMutation({
     mutationFn: completeShiftTask,
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["staff", "tasks"] }),
   });
   const orders = useMemo(() => ordersQuery.data ?? [], [ordersQuery.data]);
+  const alerts = alertsQuery.data ?? [];
   const tasks = tasksQuery.data ?? [];
   const activeOrders = useMemo(
     () => orders.filter((order) => activeStatuses.includes(order.status)),
@@ -92,7 +96,16 @@ export function OperationsPage() {
           </button>
         </div>
       )}
+      {alertsQuery.isError && (
+        <div className="orders-api-error" role="alert">
+          <span>{alertsQuery.error.message}</span>
+          <button type="button" className="text-button" onClick={() => alertsQuery.refetch()}>
+            <RefreshCw size={15} aria-hidden="true" /> Retry
+          </button>
+        </div>
+      )}
       {completeTask.error && <p className="orders-api-error" role="alert">{completeTask.error.message}</p>}
+      {acknowledge.error && <p className="orders-api-error" role="alert">{acknowledge.error.message}</p>}
 
       <section className="content-grid">
         <Panel label="Active Orders" id="orders">
@@ -121,16 +134,17 @@ export function OperationsPage() {
           <Panel label="Alerts" id="alerts">
             <PanelHeading eyebrow="Attention" title="Alerts" action={<AlertTriangle size={20} aria-hidden="true" />} />
             <div className="alert-list">
+              {alertsQuery.isPending && <EmptyState message="Loading alerts..." />}
               {alerts.map((alert) => (
-                <article className="alert-row" key={alert.label}>
+                <article className="alert-row" key={alert.id}>
                   <div><strong>{alert.label}</strong><span>{alert.detail}</span></div>
-                  <small>{alert.severity}</small>
-                  <button type="button" className="dismiss-button" aria-label={`Dismiss ${alert.label} alert`} onClick={() => acknowledgeAlert(alert.label)}>
+                  <small>{alert.severity.slice(0, 1).toUpperCase()}{alert.severity.slice(1)}</small>
+                  <button type="button" className="dismiss-button" disabled={acknowledge.isPending} aria-label={`Dismiss ${alert.label} alert`} onClick={() => acknowledge.mutate(alert.id)}>
                     <X size={16} aria-hidden="true" />
                   </button>
                 </article>
               ))}
-              {alerts.length === 0 && <EmptyState message="All alerts are cleared." />}
+              {!alertsQuery.isPending && !alertsQuery.isError && alerts.length === 0 && <EmptyState message="All alerts are cleared." />}
             </div>
           </Panel>
 
