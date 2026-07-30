@@ -16,12 +16,13 @@ import (
 	"github.com/restaurantautomation/api/internal/inventory"
 	"github.com/restaurantautomation/api/internal/orders"
 	"github.com/restaurantautomation/api/internal/printers"
+	"github.com/restaurantautomation/api/internal/staff"
 	"github.com/restaurantautomation/api/internal/tables"
 )
 
 // NewRouter constructs the Chi router with the standard middleware stack
 // and registers all API routes.
-func NewRouter(cfg *config.Config, log zerolog.Logger, engine *automation.Engine, registry *integrations.Registry, printerManager *printers.Manager, analyticsService *analytics.Service, intelligenceService *intelligence.Service, orderService *orders.Service, tableService *tables.Service, inventoryService *inventory.Service, readiness ...handlers.ReadinessChecker) *chi.Mux {
+func NewRouter(cfg *config.Config, log zerolog.Logger, engine *automation.Engine, registry *integrations.Registry, printerManager *printers.Manager, analyticsService *analytics.Service, intelligenceService *intelligence.Service, orderService *orders.Service, tableService *tables.Service, inventoryService *inventory.Service, staffService *staff.Service, readiness ...handlers.ReadinessChecker) *chi.Mux {
 	r := chi.NewRouter()
 
 	// 1. Basic Middleware
@@ -74,6 +75,15 @@ func NewRouter(cfg *config.Config, log zerolog.Logger, engine *automation.Engine
 		r.Post("/inventory", handlers.CreateInventoryItem(inventoryService))
 		r.Patch("/inventory/{itemID}/stock", handlers.UpdateInventoryStock(inventoryService))
 		r.Patch("/inventory/{itemID}/status", handlers.UpdateInventoryStatus(inventoryService))
+		r.Get("/staff", handlers.ListStaff(staffService))
+		r.Post("/staff", handlers.CreateStaffMember(staffService))
+		r.Patch("/staff/{staffID}/status", handlers.UpdateStaffStatus(staffService))
+		r.Patch("/staff/{staffID}/handoff", handlers.UpdateStaffHandoff(staffService))
+		r.Get("/staff/tasks", handlers.ListShiftTasks(staffService))
+		r.Post("/staff/tasks", handlers.CreateShiftTask(staffService))
+		r.Patch("/staff/tasks/{taskID}/complete", handlers.CompleteShiftTask(staffService))
+		r.Get("/staff/handoff", handlers.GetShiftHandoff(staffService))
+		r.Put("/staff/handoff", handlers.SaveShiftHandoff(staffService))
 	})
 
 	return r

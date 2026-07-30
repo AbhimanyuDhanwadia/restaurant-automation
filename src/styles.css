@@ -615,6 +615,42 @@ h2 {
 
 .inventory-stock-form .back-button { margin-top: 0; }
 
+.staff-create-form,
+.task-create-form {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) auto;
+  align-items: end;
+  gap: 12px;
+}
+
+.staff-create-form label,
+.task-create-form label,
+.member-handoff-form label {
+  display: grid;
+  gap: 6px;
+  color: #62706b;
+  font-size: 0.78rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.staff-create-form input,
+.task-create-form input {
+  min-width: 0;
+  min-height: 42px;
+  padding: 0 12px;
+  border: 1px solid #d9d4ca;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #19211d;
+  font: inherit;
+  text-transform: none;
+}
+
+.member-handoff-form { display: grid; gap: 10px; margin-top: 18px; }
+.member-handoff-form textarea { min-height: 86px; resize: vertical; padding: 12px; border: 1px solid #d9d4ca; border-radius: 8px; font: inherit; }
+.member-handoff-form .back-button { justify-self: start; margin-top: 0; }
+
 .order-status-control {
   display: grid;
   gap: 5px;
@@ -1406,6 +1442,9 @@ h2 {
 
   .inventory-create-form { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 
+  .staff-create-form,
+  .task-create-form { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+
   .filter-control select {
     width: 100%;
   }
@@ -1415,6 +1454,9 @@ h2 {
   .table-create-form { grid-template-columns: 1fr; }
 
   .inventory-create-form { grid-template-columns: 1fr; }
+
+  .staff-create-form,
+  .task-create-form { grid-template-columns: 1fr; }
 
   .inventory-stock-form { align-items: stretch; flex-direction: column; }
 
