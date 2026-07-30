@@ -2,14 +2,14 @@
 
 import { AlertTriangle, CheckCircle2, Clock3, Flame, ReceiptText, RefreshCw, X } from "lucide-react";
 import { useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Panel, PanelHeading } from "@/components/ui/Panel";
 import { StatusPill } from "@/components/ui/StatusPill";
 import { listOrders, type Order, type OrderStatus } from "@/features/orders/api";
+import { completeShiftTask, listShiftTasks } from "@/features/staff/api";
 import { useAlertsStore } from "@/stores/alerts";
-import { useStaffStore } from "@/stores/staff";
 import { useUIStore } from "@/stores/ui";
 
 const activeStatuses: OrderStatus[] = ["received", "preparing", "ready"];
@@ -31,12 +31,17 @@ function orderSummary(order: Order) {
 export function OperationsPage() {
   const alerts = useAlertsStore((state) => state.alerts);
   const acknowledgeAlert = useAlertsStore((state) => state.acknowledge);
-  const tasks = useStaffStore((state) => state.tasks);
-  const completeTask = useStaffStore((state) => state.completeTask);
   const searchTerm = useUIStore((state) => state.searchTerm);
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const ordersQuery = useQuery({ queryKey: ["orders"], queryFn: listOrders });
+  const tasksQuery = useQuery({ queryKey: ["staff", "tasks"], queryFn: listShiftTasks });
+  const completeTask = useMutation({
+    mutationFn: completeShiftTask,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["staff", "tasks"] }),
+  });
   const orders = useMemo(() => ordersQuery.data ?? [], [ordersQuery.data]);
+  const tasks = tasksQuery.data ?? [];
   const activeOrders = useMemo(
     () => orders.filter((order) => activeStatuses.includes(order.status)),
     [orders],
@@ -79,6 +84,15 @@ export function OperationsPage() {
           </button>
         </div>
       )}
+      {tasksQuery.isError && (
+        <div className="orders-api-error" role="alert">
+          <span>{tasksQuery.error.message}</span>
+          <button type="button" className="text-button" onClick={() => tasksQuery.refetch()}>
+            <RefreshCw size={15} aria-hidden="true" /> Retry
+          </button>
+        </div>
+      )}
+      {completeTask.error && <p className="orders-api-error" role="alert">{completeTask.error.message}</p>}
 
       <section className="content-grid">
         <Panel label="Active Orders" id="orders">
@@ -123,14 +137,15 @@ export function OperationsPage() {
           <Panel label="Next tasks">
             <PanelHeading eyebrow="Automation" title="Next Tasks" />
             <div className="task-list">
+              {tasksQuery.isPending && <EmptyState message="Loading shift tasks..." />}
               {tasks.map((task) => (
-                <article className="task-row" key={task.title}>
+                <article className="task-row" key={task.id}>
                   <div><strong>{task.title}</strong><span>{task.owner}</span></div>
-                  <time>{task.due}</time>
-                  <button type="button" className="task-complete" onClick={() => completeTask(task.title)}>Done</button>
+                  <time>{task.due_label || "No due time"}</time>
+                  <button type="button" className="task-complete" disabled={completeTask.isPending} onClick={() => completeTask.mutate(task.id)}>Done</button>
                 </article>
               ))}
-              {tasks.length === 0 && <EmptyState message="No pending tasks." />}
+              {!tasksQuery.isPending && !tasksQuery.isError && tasks.length === 0 && <EmptyState message="No pending tasks." />}
             </div>
           </Panel>
         </aside>
