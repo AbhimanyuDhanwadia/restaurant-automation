@@ -136,6 +136,32 @@ func TestAutomationQueueEndpoint(t *testing.T) {
 	}
 }
 
+func TestAutomationEventsEndpoint(t *testing.T) {
+	cfg := &config.Config{Server: config.ServerConfig{CORSOrigins: []string{"*"}}}
+	engine := automation.NewEngine(1, 10, automation.RetryPolicy{MaxAttempts: 1})
+	engine.Start(context.Background())
+	defer engine.Close()
+	if err := engine.SubmitOrder(context.Background(), "ORD-101"); err != nil {
+		t.Fatal(err)
+	}
+	printerManager := printers.NewManager(printers.ESCPosFormatter{}, 1)
+	router := api.NewRouter(cfg, zerolog.Nop(), engine, integrations.NewRegistry(), printerManager, analytics.NewService(engine, printerManager), intelligence.NewService(engine, printerManager), orders.NewService(orders.NewMemoryRepository()), tables.NewService(tables.NewMemoryRepository()), inventory.NewService(inventory.NewMemoryRepository()), staff.NewService(staff.NewMemoryRepository()), alerts.NewService(alerts.NewMemoryRepository()), settings.NewService(settings.NewMemoryRepository()))
+
+	request := httptest.NewRequest(http.MethodGet, "/api/v1/automation/events", nil)
+	recorder := httptest.NewRecorder()
+	router.ServeHTTP(recorder, request)
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", recorder.Code, http.StatusOK)
+	}
+	var events []automation.Event
+	if err := json.NewDecoder(recorder.Body).Decode(&events); err != nil {
+		t.Fatal(err)
+	}
+	if len(events) == 0 || events[0].OrderID != "ORD-101" {
+		t.Fatalf("events = %#v, want event for ORD-101", events)
+	}
+}
+
 func TestIntegrationsEndpoint(t *testing.T) {
 	cfg := &config.Config{Server: config.ServerConfig{CORSOrigins: []string{"*"}}}
 	engine := automation.NewEngine(1, 10, automation.RetryPolicy{MaxAttempts: 1})

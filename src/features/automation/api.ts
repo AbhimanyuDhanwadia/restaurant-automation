@@ -48,6 +48,7 @@ export interface AutomationDashboard {
 }
 
 export const getQueue = () => apiRequest<Queue>("/api/v1/automation/queue");
+export const getAutomationEvents = () => apiRequest<AutomationEvent[]>("/api/v1/automation/events");
 
 export async function getAutomationDashboard(): Promise<AutomationDashboard> {
   const [providers, printers, events, queue, insights] = await Promise.all([
