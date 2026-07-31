@@ -17,13 +17,14 @@ import (
 	"github.com/restaurantautomation/api/internal/inventory"
 	"github.com/restaurantautomation/api/internal/orders"
 	"github.com/restaurantautomation/api/internal/printers"
+	"github.com/restaurantautomation/api/internal/settings"
 	"github.com/restaurantautomation/api/internal/staff"
 	"github.com/restaurantautomation/api/internal/tables"
 )
 
 // NewRouter constructs the Chi router with the standard middleware stack
 // and registers all API routes.
-func NewRouter(cfg *config.Config, log zerolog.Logger, engine *automation.Engine, registry *integrations.Registry, printerManager *printers.Manager, analyticsService *analytics.Service, intelligenceService *intelligence.Service, orderService *orders.Service, tableService *tables.Service, inventoryService *inventory.Service, staffService *staff.Service, alertService *alerts.Service, readiness ...handlers.ReadinessChecker) *chi.Mux {
+func NewRouter(cfg *config.Config, log zerolog.Logger, engine *automation.Engine, registry *integrations.Registry, printerManager *printers.Manager, analyticsService *analytics.Service, intelligenceService *intelligence.Service, orderService *orders.Service, tableService *tables.Service, inventoryService *inventory.Service, staffService *staff.Service, alertService *alerts.Service, settingsService *settings.Service, readiness ...handlers.ReadinessChecker) *chi.Mux {
 	r := chi.NewRouter()
 
 	// 1. Basic Middleware
@@ -88,6 +89,8 @@ func NewRouter(cfg *config.Config, log zerolog.Logger, engine *automation.Engine
 		r.Get("/alerts", handlers.ListAlerts(alertService))
 		r.Post("/alerts", handlers.CreateAlert(alertService))
 		r.Patch("/alerts/{alertID}/acknowledge", handlers.AcknowledgeAlert(alertService))
+		r.Get("/settings", handlers.GetSettings(settingsService))
+		r.Put("/settings", handlers.SaveSettings(settingsService))
 	})
 
 	return r

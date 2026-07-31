@@ -24,6 +24,7 @@ import (
 	"github.com/restaurantautomation/api/internal/logger"
 	"github.com/restaurantautomation/api/internal/orders"
 	"github.com/restaurantautomation/api/internal/printers"
+	"github.com/restaurantautomation/api/internal/settings"
 	"github.com/restaurantautomation/api/internal/staff"
 	"github.com/restaurantautomation/api/internal/tables"
 )
@@ -48,6 +49,7 @@ func main() {
 	inventoryRepository := inventory.Repository(inventory.NewMemoryRepository())
 	staffRepository := staff.Repository(staff.NewMemoryRepository())
 	alertRepository := alerts.Repository(alerts.NewMemoryRepository())
+	settingsRepository := settings.Repository(settings.NewMemoryRepository())
 	if cfg.Database.DSN != "" {
 		startupCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 		pool, err := database.Open(startupCtx, cfg.Database)
@@ -65,6 +67,7 @@ func main() {
 		inventoryRepository = inventory.NewPostgresRepository(pool)
 		staffRepository = staff.NewPostgresRepository(pool)
 		alertRepository = alerts.NewPostgresRepository(pool)
+		settingsRepository = settings.NewPostgresRepository(pool)
 		eventPersister = database.NewEventPersister(database.NewEventStore(pool), log)
 		log.Info().Msg("database persistence enabled")
 	} else {
@@ -109,9 +112,10 @@ func main() {
 	inventoryService := inventory.NewService(inventoryRepository)
 	staffService := staff.NewService(staffRepository)
 	alertService := alerts.NewService(alertRepository)
+	settingsService := settings.NewService(settingsRepository)
 	intelligenceService.Start(context.Background())
 	defer intelligenceService.Close()
-	router := api.NewRouter(cfg, log, engine, providers, printerManager, analyticsService, intelligenceService, orderService, tableService, inventoryService, staffService, alertService, databasePool)
+	router := api.NewRouter(cfg, log, engine, providers, printerManager, analyticsService, intelligenceService, orderService, tableService, inventoryService, staffService, alertService, settingsService, databasePool)
 
 	// 5. Setup HTTP Server
 	server := &http.Server{
