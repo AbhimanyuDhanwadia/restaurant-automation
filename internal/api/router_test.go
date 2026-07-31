@@ -113,6 +113,29 @@ func TestAutomationOrderEndpoint(t *testing.T) {
 	}
 }
 
+func TestAutomationQueueEndpoint(t *testing.T) {
+	cfg := &config.Config{Server: config.ServerConfig{CORSOrigins: []string{"*"}}}
+	engine := automation.NewEngine(2, 10, automation.RetryPolicy{MaxAttempts: 1})
+	engine.Start(context.Background())
+	defer engine.Close()
+	printerManager := printers.NewManager(printers.ESCPosFormatter{}, 1)
+	router := api.NewRouter(cfg, zerolog.Nop(), engine, integrations.NewRegistry(), printerManager, analytics.NewService(engine, printerManager), intelligence.NewService(engine, printerManager), orders.NewService(orders.NewMemoryRepository()), tables.NewService(tables.NewMemoryRepository()), inventory.NewService(inventory.NewMemoryRepository()), staff.NewService(staff.NewMemoryRepository()), alerts.NewService(alerts.NewMemoryRepository()), settings.NewService(settings.NewMemoryRepository()))
+
+	request := httptest.NewRequest(http.MethodGet, "/api/v1/automation/queue", nil)
+	recorder := httptest.NewRecorder()
+	router.ServeHTTP(recorder, request)
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", recorder.Code, http.StatusOK)
+	}
+	var stats automation.Stats
+	if err := json.NewDecoder(recorder.Body).Decode(&stats); err != nil {
+		t.Fatal(err)
+	}
+	if stats.Workers != 2 || stats.QueueCapacity != 10 {
+		t.Fatalf("stats = %#v, want two workers and capacity ten", stats)
+	}
+}
+
 func TestIntegrationsEndpoint(t *testing.T) {
 	cfg := &config.Config{Server: config.ServerConfig{CORSOrigins: []string{"*"}}}
 	engine := automation.NewEngine(1, 10, automation.RetryPolicy{MaxAttempts: 1})

@@ -56,7 +56,7 @@ const NAV_GROUPS: Array<{
       { to: "/automation/printers", label: "Printers", icon: Printer },
       { to: "/automation/system-health", label: "System Health", icon: Activity, disabled: true },
       { to: "/automation/event-logs", label: "Event Logs", icon: ScrollText, disabled: true },
-      { to: "/automation/queue-monitor", label: "Queue Monitor", icon: ListChecks, disabled: true },
+      { to: "/automation/queue-monitor", label: "Queue Monitor", icon: ListChecks },
     ],
   },
   {
