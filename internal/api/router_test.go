@@ -113,6 +113,37 @@ func TestAutomationOrderEndpoint(t *testing.T) {
 	}
 }
 
+func TestIntegrationsEndpoint(t *testing.T) {
+	cfg := &config.Config{Server: config.ServerConfig{CORSOrigins: []string{"*"}}}
+	engine := automation.NewEngine(1, 10, automation.RetryPolicy{MaxAttempts: 1})
+	engine.Start(context.Background())
+	defer engine.Close()
+	printerManager := printers.NewManager(printers.ESCPosFormatter{}, 1)
+	registry := integrations.NewRegistry()
+	provider := integrations.NewMockProvider("swiggy", 1)
+	if err := registry.Register(provider); err != nil {
+		t.Fatal(err)
+	}
+	if err := provider.Connect(); err != nil {
+		t.Fatal(err)
+	}
+	router := api.NewRouter(cfg, zerolog.Nop(), engine, registry, printerManager, analytics.NewService(engine, printerManager), intelligence.NewService(engine, printerManager), orders.NewService(orders.NewMemoryRepository()), tables.NewService(tables.NewMemoryRepository()), inventory.NewService(inventory.NewMemoryRepository()), staff.NewService(staff.NewMemoryRepository()), alerts.NewService(alerts.NewMemoryRepository()), settings.NewService(settings.NewMemoryRepository()))
+
+	request := httptest.NewRequest(http.MethodGet, "/api/v1/integrations", nil)
+	recorder := httptest.NewRecorder()
+	router.ServeHTTP(recorder, request)
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", recorder.Code, http.StatusOK)
+	}
+	var providers []integrations.Health
+	if err := json.NewDecoder(recorder.Body).Decode(&providers); err != nil {
+		t.Fatal(err)
+	}
+	if len(providers) != 1 || providers[0].Name != "swiggy" || providers[0].Status != integrations.StatusConnected {
+		t.Fatalf("providers = %#v, want connected swiggy", providers)
+	}
+}
+
 func TestAutomationOrderEndpointValidatesOrderID(t *testing.T) {
 	cfg := &config.Config{Server: config.ServerConfig{CORSOrigins: []string{"*"}}}
 	engine := automation.NewEngine(1, 10, automation.RetryPolicy{MaxAttempts: 1})

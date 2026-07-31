@@ -480,6 +480,14 @@ h2 {
 .event-marker { width: 8px; height: 8px; border-radius: 50%; background: #b8472b; box-shadow: 0 0 0 4px #fff0e9; }
 .automation-live-dot { color: #1f6b36; font-size: 0.78rem; font-weight: 800; }
 .automation-updated { margin: -4px 0 0; text-align: right; font-size: 0.76rem; }
+.integrations-workspace { display: grid; gap: 18px; }
+.integration-list, .integration-webhook-list { display: grid; }
+.integration-row, .integration-webhook-list > div { display: flex; align-items: center; justify-content: space-between; gap: 16px; min-height: 60px; padding: 10px 0; border-top: 1px solid #ece7df; }
+.integration-row:first-child, .integration-webhook-list > div:first-child { border-top: 0; }
+.integration-row > div { display: grid; gap: 5px; }
+.integration-row span { color: #65716d; font-size: 0.82rem; }
+.integration-webhook-list span { color: #46534e; font-weight: 800; }
+.integration-webhook-list code { overflow-wrap: anywhere; color: #65716d; font-size: 0.8rem; text-align: right; }
 .spin { animation: spin 0.8s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 
