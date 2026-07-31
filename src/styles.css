@@ -488,6 +488,13 @@ h2 {
 .integration-row span { color: #65716d; font-size: 0.82rem; }
 .integration-webhook-list span { color: #46534e; font-weight: 800; }
 .integration-webhook-list code { overflow-wrap: anywhere; color: #65716d; font-size: 0.8rem; text-align: right; }
+.printers-workspace { display: grid; gap: 18px; }
+.printer-list { display: grid; }
+.printer-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; min-height: 60px; padding: 10px 0; border-top: 1px solid #ece7df; }
+.printer-row:first-child { border-top: 0; }
+.printer-row > div { display: grid; gap: 5px; }
+.printer-row span, .printer-configuration-copy { color: #65716d; font-size: 0.82rem; }
+.printer-configuration-copy { max-width: 70ch; margin: 0; line-height: 1.5; }
 .spin { animation: spin 0.8s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 

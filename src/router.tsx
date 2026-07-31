@@ -44,6 +44,7 @@ const AnalyticsPage = lazyRouteComponent(() => import("@/pages/AnalyticsPage"), 
 const SettingsPage = lazyRouteComponent(() => import("@/pages/SettingsPage"), "SettingsPage");
 const AutomationPage = lazyRouteComponent(() => import("@/pages/AutomationPage"), "AutomationPage");
 const IntegrationsPage = lazyRouteComponent(() => import("@/pages/IntegrationsPage"), "IntegrationsPage");
+const PrintersPage = lazyRouteComponent(() => import("@/pages/PrintersPage"), "PrintersPage");
 
 // ---------------------------------------------------------------------------
 // Root route — wraps everything in the AuthGuard.
@@ -137,6 +138,12 @@ const integrationsRoute = createRoute({
   component: IntegrationsPage,
 });
 
+const printersRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/automation/printers",
+  component: PrintersPage,
+});
+
 // ---------------------------------------------------------------------------
 // Router instance
 // ---------------------------------------------------------------------------
@@ -154,6 +161,7 @@ const routeTree = rootRoute.addChildren([
   settingsRoute,
   automationRoute,
   integrationsRoute,
+  printersRoute,
 ]);
 
 const basepath = import.meta.env.BASE_URL.replace(/\/$/, "") || "/";

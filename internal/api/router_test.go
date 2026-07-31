@@ -144,6 +144,36 @@ func TestIntegrationsEndpoint(t *testing.T) {
 	}
 }
 
+func TestPrintersEndpoint(t *testing.T) {
+	cfg := &config.Config{Server: config.ServerConfig{CORSOrigins: []string{"*"}}}
+	engine := automation.NewEngine(1, 10, automation.RetryPolicy{MaxAttempts: 1})
+	engine.Start(context.Background())
+	defer engine.Close()
+	printerManager := printers.NewManager(printers.ESCPosFormatter{}, 1)
+	if err := printerManager.Register(printers.NewMockDriver("kitchen"), "kitchen"); err != nil {
+		t.Fatal(err)
+	}
+	if err := printerManager.Start(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	defer printerManager.Close()
+	router := api.NewRouter(cfg, zerolog.Nop(), engine, integrations.NewRegistry(), printerManager, analytics.NewService(engine, printerManager), intelligence.NewService(engine, printerManager), orders.NewService(orders.NewMemoryRepository()), tables.NewService(tables.NewMemoryRepository()), inventory.NewService(inventory.NewMemoryRepository()), staff.NewService(staff.NewMemoryRepository()), alerts.NewService(alerts.NewMemoryRepository()), settings.NewService(settings.NewMemoryRepository()))
+
+	request := httptest.NewRequest(http.MethodGet, "/api/v1/printers", nil)
+	recorder := httptest.NewRecorder()
+	router.ServeHTTP(recorder, request)
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", recorder.Code, http.StatusOK)
+	}
+	var fleet []printers.PrinterHealth
+	if err := json.NewDecoder(recorder.Body).Decode(&fleet); err != nil {
+		t.Fatal(err)
+	}
+	if len(fleet) != 1 || fleet[0].Name != "kitchen" || fleet[0].Status != printers.StatusReady {
+		t.Fatalf("fleet = %#v, want ready kitchen printer", fleet)
+	}
+}
+
 func TestAutomationOrderEndpointValidatesOrderID(t *testing.T) {
 	cfg := &config.Config{Server: config.ServerConfig{CORSOrigins: []string{"*"}}}
 	engine := automation.NewEngine(1, 10, automation.RetryPolicy{MaxAttempts: 1})
