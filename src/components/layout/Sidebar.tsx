@@ -76,7 +76,7 @@ const NAV_GROUPS: Array<{
       { to: "/admin/users", label: "Users", icon: UsersRound, disabled: true },
       { to: "/admin/roles", label: "Roles", icon: ShieldCheck, disabled: true },
       { to: "/admin/database", label: "Database", icon: Database, disabled: true },
-      { to: "/admin/audit-logs", label: "Audit Logs", icon: FileClock, disabled: true },
+      { to: "/admin/audit-logs", label: "Audit Logs", icon: FileClock },
       { to: "/admin/backups", label: "Backups", icon: Archive, disabled: true },
     ],
   },

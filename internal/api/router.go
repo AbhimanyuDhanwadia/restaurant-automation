@@ -24,7 +24,12 @@ import (
 
 // NewRouter constructs the Chi router with the standard middleware stack
 // and registers all API routes.
-func NewRouter(cfg *config.Config, log zerolog.Logger, engine *automation.Engine, registry *integrations.Registry, printerManager *printers.Manager, analyticsService *analytics.Service, intelligenceService *intelligence.Service, orderService *orders.Service, tableService *tables.Service, inventoryService *inventory.Service, staffService *staff.Service, alertService *alerts.Service, settingsService *settings.Service, readiness ...handlers.ReadinessChecker) *chi.Mux {
+type Dependencies struct {
+	Readiness      handlers.ReadinessChecker
+	AuditLogReader handlers.OperationalEventReader
+}
+
+func NewRouter(cfg *config.Config, log zerolog.Logger, engine *automation.Engine, registry *integrations.Registry, printerManager *printers.Manager, analyticsService *analytics.Service, intelligenceService *intelligence.Service, orderService *orders.Service, tableService *tables.Service, inventoryService *inventory.Service, staffService *staff.Service, alertService *alerts.Service, settingsService *settings.Service, dependencies ...Dependencies) *chi.Mux {
 	r := chi.NewRouter()
 
 	// 1. Basic Middleware
@@ -45,10 +50,11 @@ func NewRouter(cfg *config.Config, log zerolog.Logger, engine *automation.Engine
 
 	// 3. System Routes (Unauthenticated)
 	r.Get("/health", handlers.Health())
-	var checker handlers.ReadinessChecker
-	if len(readiness) > 0 {
-		checker = readiness[0]
+	var dependenciesConfig Dependencies
+	if len(dependencies) > 0 {
+		dependenciesConfig = dependencies[0]
 	}
+	checker := dependenciesConfig.Readiness
 	r.Get("/ready", handlers.ReadyWithCheck(checker))
 	r.Post("/api/v1/webhooks/{provider}", handlers.ReceiveWebhook(registry))
 
@@ -57,6 +63,7 @@ func NewRouter(cfg *config.Config, log zerolog.Logger, engine *automation.Engine
 		r.Use(appm.Auth(cfg.Auth))
 		r.Get("/me", handlers.CurrentUser())
 		r.Get("/system/health", handlers.SystemHealth(engine, registry, printerManager, checker))
+		r.Get("/admin/audit-logs", handlers.AuditLogs(engine, dependenciesConfig.AuditLogReader))
 		r.Get("/insights", handlers.Insights(intelligenceService))
 		r.Get("/analytics/overview", handlers.AnalyticsOverview(analyticsService))
 		r.Get("/integrations", handlers.Integrations(registry))

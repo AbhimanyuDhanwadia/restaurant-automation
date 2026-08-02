@@ -27,6 +27,41 @@ func (s *EventStore) Save(ctx context.Context, event automation.Event) error {
 	return nil
 }
 
+func (s *EventStore) List(ctx context.Context, limit int) ([]automation.Event, error) {
+	if limit < 1 {
+		limit = 100
+	}
+	if limit > 1_000 {
+		limit = 1_000
+	}
+	rows, err := s.pool.Query(ctx, `SELECT id, event_type, order_id, occurred_at, attempt, payload FROM operational_events ORDER BY occurred_at DESC LIMIT $1`, limit)
+	if err != nil {
+		return nil, fmt.Errorf("list operational events: %w", err)
+	}
+	defer rows.Close()
+
+	result := make([]automation.Event, 0)
+	for rows.Next() {
+		var event automation.Event
+		var eventType string
+		var payload []byte
+		if err := rows.Scan(&event.ID, &eventType, &event.OrderID, &event.CreatedAt, &event.Attempt, &payload); err != nil {
+			return nil, fmt.Errorf("scan operational event: %w", err)
+		}
+		event.Type = automation.EventType(eventType)
+		if len(payload) > 0 {
+			if err := json.Unmarshal(payload, &event.Payload); err != nil {
+				return nil, fmt.Errorf("unmarshal event payload: %w", err)
+			}
+		}
+		result = append(result, event)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate operational events: %w", err)
+	}
+	return result, nil
+}
+
 // EventPersister observes the event bus without becoming a dependency of the
 // automation engine. A failed write is logged and does not block order flow.
 type EventPersister struct {
