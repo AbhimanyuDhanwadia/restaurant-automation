@@ -521,6 +521,16 @@ h2 {
 .event-log-row > div { display: grid; gap: 4px; }
 .event-log-row code { color: #65716d; font-size: 0.76rem; }
 .event-retention-copy { max-width: 70ch; margin: 0; line-height: 1.5; }
+.system-health-workspace { display: grid; gap: 18px; }
+.system-health-list { display: grid; }
+.system-health-row { display: grid; grid-template-columns: 24px minmax(0, 1fr) auto; align-items: center; gap: 14px; min-height: 68px; border-top: 1px solid #ece7df; }
+.system-health-row:first-child { border-top: 0; }
+.system-health-row > svg { color: #b8472b; }
+.system-health-row > div { display: grid; gap: 5px; }
+.system-health-row span { color: #65716d; font-size: 0.82rem; }
+.status-healthy { background: #e5f6ea; color: #1f6b36; }
+.status-unavailable { background: #ffe9df; color: #a43b21; }
+.status-not_configured { background: #edf0e7; color: #65716d; }
 .spin { animation: spin 0.8s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 
@@ -1509,6 +1519,8 @@ h2 {
   .queue-monitor-grid { grid-template-columns: 1fr; }
   .event-log-row { grid-template-columns: 70px minmax(0, 1fr); padding: 10px 0; }
   .event-log-row code { display: none; }
+  .system-health-row { grid-template-columns: 22px minmax(0, 1fr); padding: 10px 0; }
+  .system-health-row .automation-status { grid-column: 2; justify-self: start; }
 
   .orders-toolbar {
     align-items: stretch;

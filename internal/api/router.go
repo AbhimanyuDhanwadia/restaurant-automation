@@ -56,6 +56,7 @@ func NewRouter(cfg *config.Config, log zerolog.Logger, engine *automation.Engine
 	r.Route("/api/v1", func(r chi.Router) {
 		r.Use(appm.Auth(cfg.Auth))
 		r.Get("/me", handlers.CurrentUser())
+		r.Get("/system/health", handlers.SystemHealth(engine, registry, printerManager, checker))
 		r.Get("/insights", handlers.Insights(intelligenceService))
 		r.Get("/analytics/overview", handlers.AnalyticsOverview(analyticsService))
 		r.Get("/integrations", handlers.Integrations(registry))
