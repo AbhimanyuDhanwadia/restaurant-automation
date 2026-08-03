@@ -66,7 +66,7 @@ const NAV_GROUPS: Array<{
       { to: "/analytics/sales", label: "Sales", icon: BarChart3, disabled: true },
       { to: "/analytics/kitchen", label: "Kitchen Performance", icon: ChefHat },
       { to: "/analytics/delivery", label: "Delivery Performance", icon: ReceiptText, disabled: true },
-      { to: "/analytics/inventory", label: "Inventory Analytics", icon: PackageSearch, disabled: true },
+      { to: "/analytics/inventory", label: "Inventory Analytics", icon: PackageSearch },
     ],
   },
   {

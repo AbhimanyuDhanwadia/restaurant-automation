@@ -1104,6 +1104,18 @@ h2 {
 .kitchen-performance-order span, .kitchen-performance-order time { color: #65716d; font-size: 0.8rem; }
 .kitchen-performance-order span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .kitchen-performance-order time { white-space: nowrap; }
+.inventory-analytics-workspace { display: grid; gap: 18px; }
+.inventory-analytics-grid { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(280px, 0.75fr); gap: 18px; }
+.inventory-category-list, .inventory-risk-list { display: grid; }
+.inventory-category-list > div { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: 14px; min-height: 56px; border-top: 1px solid #ece7df; }
+.inventory-category-list > div:first-child, .inventory-risk-row:first-child { border-top: 0; }
+.inventory-category-list span, .inventory-category-list small, .inventory-risk-row span { color: #65716d; font-size: 0.8rem; }
+.inventory-category-list small { text-align: right; }
+.inventory-risk-row { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(130px, 0.7fr); align-items: center; gap: 16px; min-height: 70px; border-top: 1px solid #ece7df; }
+.inventory-risk-row > div:first-child { display: grid; gap: 5px; min-width: 0; }
+.inventory-risk-row > div:first-child span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.inventory-risk-row > div:last-child { display: grid; justify-items: end; gap: 6px; }
+.inventory-risk-row > strong { color: #a43b21; font-size: 0.82rem; white-space: nowrap; }
 
 .settings-grid {
   display: grid;
@@ -1534,6 +1546,7 @@ h2 {
   .automation-grid { grid-template-columns: 1fr; }
   .queue-monitor-grid { grid-template-columns: 1fr; }
   .kitchen-performance-grid { grid-template-columns: 1fr; }
+  .inventory-analytics-grid { grid-template-columns: 1fr; }
   .order-engine-grid { grid-template-columns: 1fr; }
   .engine-pipeline { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .event-log-controls { align-items: stretch; flex-direction: column; }
@@ -1580,6 +1593,11 @@ h2 {
 
   .queue-monitor-grid { grid-template-columns: 1fr; }
   .kitchen-performance-grid { grid-template-columns: 1fr; }
+  .inventory-analytics-grid { grid-template-columns: 1fr; }
+  .inventory-category-list > div { grid-template-columns: minmax(0, 1fr) auto; gap: 8px; padding: 10px 0; }
+  .inventory-category-list small { grid-column: 1 / -1; text-align: left; }
+  .inventory-risk-row { grid-template-columns: minmax(0, 1fr) auto; gap: 8px; padding: 12px 0; }
+  .inventory-risk-row > div:last-child { grid-column: 1 / -1; justify-items: start; }
   .kitchen-performance-order { grid-template-columns: minmax(0, 1fr) auto; gap: 8px; padding: 12px 0; }
   .kitchen-performance-order .status { grid-column: 1; justify-self: start; }
   .engine-pipeline { grid-template-columns: 1fr; }
