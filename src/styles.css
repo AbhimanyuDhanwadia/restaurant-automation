@@ -1091,6 +1091,19 @@ h2 {
   color: #46534e;
   line-height: 1.6;
 }
+.kitchen-performance-workspace { display: grid; gap: 18px; }
+.kitchen-performance-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+.kitchen-performance-states { display: grid; }
+.kitchen-performance-states > div { display: flex; align-items: center; justify-content: space-between; gap: 16px; min-height: 54px; border-top: 1px solid #ece7df; }
+.kitchen-performance-states > div:first-child { border-top: 0; }
+.kitchen-performance-states span { color: #65716d; }
+.kitchen-performance-orders { display: grid; }
+.kitchen-performance-order { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: 14px; min-height: 62px; border-top: 1px solid #ece7df; }
+.kitchen-performance-order:first-child { border-top: 0; }
+.kitchen-performance-order > div { display: grid; gap: 5px; min-width: 0; }
+.kitchen-performance-order span, .kitchen-performance-order time { color: #65716d; font-size: 0.8rem; }
+.kitchen-performance-order span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.kitchen-performance-order time { white-space: nowrap; }
 
 .settings-grid {
   display: grid;
@@ -1520,6 +1533,7 @@ h2 {
 
   .automation-grid { grid-template-columns: 1fr; }
   .queue-monitor-grid { grid-template-columns: 1fr; }
+  .kitchen-performance-grid { grid-template-columns: 1fr; }
   .order-engine-grid { grid-template-columns: 1fr; }
   .engine-pipeline { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .event-log-controls { align-items: stretch; flex-direction: column; }
@@ -1565,6 +1579,9 @@ h2 {
   }
 
   .queue-monitor-grid { grid-template-columns: 1fr; }
+  .kitchen-performance-grid { grid-template-columns: 1fr; }
+  .kitchen-performance-order { grid-template-columns: minmax(0, 1fr) auto; gap: 8px; padding: 12px 0; }
+  .kitchen-performance-order .status { grid-column: 1; justify-self: start; }
   .engine-pipeline { grid-template-columns: 1fr; }
   .engine-order-row { grid-template-columns: minmax(0, 1fr) auto; gap: 8px; padding: 12px 0; }
   .engine-order-progress { grid-column: 1 / -1; }
