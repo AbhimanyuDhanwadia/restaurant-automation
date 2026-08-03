@@ -50,7 +50,7 @@ const NAV_GROUPS: Array<{
     label: "Automation",
     items: [
       { to: "/automation", label: "Automation Overview", icon: Activity },
-      { to: "/automation/order-engine", label: "Order Engine", icon: ListChecks, disabled: true },
+      { to: "/automation/order-engine", label: "Order Engine", icon: ListChecks },
       { to: "/automation/integrations", label: "Integrations", icon: PlugZap },
       { to: "/automation/print-queue", label: "Print Queue", icon: Printer },
       { to: "/automation/printers", label: "Printers", icon: Printer },
