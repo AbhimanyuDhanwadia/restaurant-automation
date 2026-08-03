@@ -27,6 +27,7 @@ import (
 type Dependencies struct {
 	Readiness      handlers.ReadinessChecker
 	AuditLogReader handlers.OperationalEventReader
+	Database       handlers.DatabaseInspector
 }
 
 func NewRouter(cfg *config.Config, log zerolog.Logger, engine *automation.Engine, registry *integrations.Registry, printerManager *printers.Manager, analyticsService *analytics.Service, intelligenceService *intelligence.Service, orderService *orders.Service, tableService *tables.Service, inventoryService *inventory.Service, staffService *staff.Service, alertService *alerts.Service, settingsService *settings.Service, dependencies ...Dependencies) *chi.Mux {
@@ -64,6 +65,7 @@ func NewRouter(cfg *config.Config, log zerolog.Logger, engine *automation.Engine
 		r.Get("/me", handlers.CurrentUser())
 		r.Get("/system/health", handlers.SystemHealth(engine, registry, printerManager, checker))
 		r.Get("/admin/audit-logs", handlers.AuditLogs(engine, dependenciesConfig.AuditLogReader))
+		r.Get("/admin/database", handlers.DatabaseStatus(dependenciesConfig.Database))
 		r.Get("/insights", handlers.Insights(intelligenceService))
 		r.Get("/analytics/overview", handlers.AnalyticsOverview(analyticsService))
 		r.Get("/integrations", handlers.Integrations(registry))

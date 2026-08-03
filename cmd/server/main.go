@@ -44,6 +44,7 @@ func main() {
 	// 3. Open PostgreSQL and apply versioned migrations when configured.
 	var eventPersister *database.EventPersister
 	var eventStore *database.EventStore
+	var databaseInspector *database.Inspector
 	var databasePool *pgxpool.Pool
 	orderRepository := orders.Repository(orders.NewMemoryRepository())
 	tableRepository := tables.Repository(tables.NewMemoryRepository())
@@ -70,6 +71,7 @@ func main() {
 		alertRepository = alerts.NewPostgresRepository(pool)
 		settingsRepository = settings.NewPostgresRepository(pool)
 		eventStore = database.NewEventStore(pool)
+		databaseInspector = database.NewInspector(pool)
 		eventPersister = database.NewEventPersister(eventStore, log)
 		log.Info().Msg("database persistence enabled")
 	} else {
@@ -117,7 +119,7 @@ func main() {
 	settingsService := settings.NewService(settingsRepository)
 	intelligenceService.Start(context.Background())
 	defer intelligenceService.Close()
-	router := api.NewRouter(cfg, log, engine, providers, printerManager, analyticsService, intelligenceService, orderService, tableService, inventoryService, staffService, alertService, settingsService, api.Dependencies{Readiness: databasePool, AuditLogReader: eventStore})
+	router := api.NewRouter(cfg, log, engine, providers, printerManager, analyticsService, intelligenceService, orderService, tableService, inventoryService, staffService, alertService, settingsService, api.Dependencies{Readiness: databasePool, AuditLogReader: eventStore, Database: databaseInspector})
 
 	// 5. Setup HTTP Server
 	server := &http.Server{
