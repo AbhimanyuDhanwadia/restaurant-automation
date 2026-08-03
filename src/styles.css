@@ -548,6 +548,18 @@ h2 {
 .migration-row:first-child { border-top: 0; }
 .migration-row time, .database-access-copy { color: #65716d; font-size: 0.82rem; }
 .database-access-copy { max-width: 70ch; margin: 0; line-height: 1.5; }
+.print-queue-workspace { display: grid; gap: 18px; }
+.print-job-list { display: grid; }
+.print-job-row { display: grid; grid-template-columns: minmax(220px, 1.6fr) 86px auto 88px auto; align-items: center; gap: 14px; min-height: 76px; border-top: 1px solid #ece7df; }
+.print-job-row:first-child { border-top: 0; }
+.print-job-row > div { display: grid; gap: 4px; min-width: 0; }
+.print-job-row > div span, .print-job-row time, .print-attempts { color: #65716d; font-size: 0.8rem; }
+.print-job-row > div small { color: #a43b21; font-size: 0.76rem; }
+.print-job-row .back-button { margin: 0; white-space: nowrap; }
+.status-queued { background: #fff0c9; color: #795a13; }
+.status-printing { background: #e8f2ff; color: #17527d; }
+.status-printed { background: #e5f6ea; color: #1f6b36; }
+.status-failed { background: #ffe9df; color: #a43b21; }
 .spin { animation: spin 0.8s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 
@@ -1541,6 +1553,9 @@ h2 {
   .audit-log-row { grid-template-columns: 1fr; gap: 5px; padding: 12px 0; }
   .audit-log-row code { max-width: 100%; }
   .migration-row { align-items: start; flex-direction: column; justify-content: center; gap: 4px; padding: 10px 0; }
+  .print-job-row { grid-template-columns: minmax(0, 1fr) auto; gap: 8px; padding: 12px 0; }
+  .print-job-row time, .print-job-row .print-attempts { grid-column: 1; }
+  .print-job-row .back-button { grid-column: 2; grid-row: 1 / span 3; }
 
   .orders-toolbar {
     align-items: stretch;

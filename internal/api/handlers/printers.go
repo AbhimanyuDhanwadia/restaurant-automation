@@ -6,32 +6,69 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/restaurantautomation/api/internal/printers"
+	"github.com/restaurantautomation/api/internal/printqueue"
 )
 
 func Printers(manager *printers.Manager) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) { writeJSON(w, http.StatusOK, manager.Health()) }
 }
-func PrintTicket(manager *printers.Manager) http.HandlerFunc {
+func PrintQueue(queue *printqueue.Service) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if queue == nil {
+			http.Error(w, "print queue unavailable", http.StatusServiceUnavailable)
+			return
+		}
+		jobs, err := queue.List(r.Context())
+		if err != nil {
+			http.Error(w, "print queue unavailable", http.StatusInternalServerError)
+			return
+		}
+		writeJSON(w, http.StatusOK, jobs)
+	}
+}
+func PrintTicket(manager *printers.Manager, queue *printqueue.Service) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var ticket printers.Ticket
-		if err := json.NewDecoder(r.Body).Decode(&ticket); err != nil || ticket.OrderID == "" || ticket.Destination == "" {
+		if err := json.NewDecoder(r.Body).Decode(&ticket); err != nil || ticket.OrderID == "" || ticket.Destination == "" || len(ticket.Lines) == 0 {
 			http.Error(w, "order_id, destination, and lines are required", http.StatusBadRequest)
 			return
 		}
+		if queue == nil {
+			http.Error(w, "print queue unavailable", http.StatusServiceUnavailable)
+			return
+		}
+		job, err := queue.Queue(r.Context(), ticket)
+		if err != nil {
+			http.Error(w, "create print job", http.StatusInternalServerError)
+			return
+		}
+		ticket.PrintJobID = job.ID
 		if err := manager.Print(r.Context(), ticket); err != nil {
+			queue.Failed(r.Context(), ticket, 0, err)
 			http.Error(w, err.Error(), http.StatusServiceUnavailable)
 			return
 		}
-		writeJSON(w, http.StatusAccepted, map[string]string{"status": "queued", "order_id": ticket.OrderID})
+		writeJSON(w, http.StatusAccepted, job)
 	}
 }
-func ReprintTicket(manager *printers.Manager) http.HandlerFunc {
+func ReprintTicket(manager *printers.Manager, queue *printqueue.Service) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		orderID := chi.URLParam(r, "orderID")
-		if err := manager.Reprint(r.Context(), orderID); err != nil {
+		if queue == nil {
+			http.Error(w, "print queue unavailable", http.StatusServiceUnavailable)
+			return
+		}
+		job, err := queue.Reprint(r.Context(), orderID)
+		if err != nil {
 			http.Error(w, err.Error(), http.StatusNotFound)
 			return
 		}
-		writeJSON(w, http.StatusAccepted, map[string]string{"status": "reprint_queued", "order_id": orderID})
+		ticket := printers.Ticket{OrderID: job.OrderID, Destination: job.Destination, Lines: job.Lines, Reprint: true, PrintJobID: job.ID}
+		if err := manager.Print(r.Context(), ticket); err != nil {
+			queue.Failed(r.Context(), ticket, 0, err)
+			http.Error(w, err.Error(), http.StatusServiceUnavailable)
+			return
+		}
+		writeJSON(w, http.StatusAccepted, job)
 	}
 }

@@ -52,7 +52,7 @@ const NAV_GROUPS: Array<{
       { to: "/automation", label: "Automation Overview", icon: Activity },
       { to: "/automation/order-engine", label: "Order Engine", icon: ListChecks, disabled: true },
       { to: "/automation/integrations", label: "Integrations", icon: PlugZap },
-      { to: "/automation/print-queue", label: "Print Queue", icon: Printer, disabled: true },
+      { to: "/automation/print-queue", label: "Print Queue", icon: Printer },
       { to: "/automation/printers", label: "Printers", icon: Printer },
       { to: "/automation/system-health", label: "System Health", icon: Activity },
       { to: "/automation/event-logs", label: "Event Logs", icon: ScrollText },

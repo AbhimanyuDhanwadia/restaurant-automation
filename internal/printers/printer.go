@@ -26,6 +26,13 @@ type Ticket struct {
 	Destination string `json:"destination"`
 	Lines       []Line `json:"lines"`
 	Reprint     bool   `json:"reprint,omitempty"`
+	PrintJobID  string `json:"-"`
+}
+
+type JobObserver interface {
+	Printing(context.Context, Ticket, int)
+	Printed(context.Context, Ticket, int)
+	Failed(context.Context, Ticket, int, error)
 }
 
 type Driver interface {
@@ -70,6 +77,13 @@ type Manager struct {
 	cancel     context.CancelFunc
 	wg         sync.WaitGroup
 	started    bool
+	observer   JobObserver
+}
+
+func (m *Manager) SetObserver(observer JobObserver) {
+	m.mu.Lock()
+	m.observer = observer
+	m.mu.Unlock()
 }
 
 func NewManager(formatter Formatter, retryLimit int) *Manager {
@@ -130,7 +144,7 @@ func (m *Manager) Print(ctx context.Context, ticket Ticket) error {
 		return ctx.Err()
 	}
 }
-func (m *Manager) Reprint(ctx context.Context, orderID string) error {
+func (m *Manager) Reprint(ctx context.Context, orderID, printJobID string) error {
 	m.mu.RLock()
 	ticket, ok := m.history[orderID]
 	m.mu.RUnlock()
@@ -138,6 +152,7 @@ func (m *Manager) Reprint(ctx context.Context, orderID string) error {
 		return ErrTicketNotFound
 	}
 	ticket.Reprint = true
+	ticket.PrintJobID = printJobID
 	return m.Print(ctx, ticket)
 }
 func (m *Manager) worker(printer *managedPrinter) {
@@ -150,21 +165,48 @@ func (m *Manager) worker(printer *managedPrinter) {
 			data := m.formatter.Format(current.ticket)
 			var err error
 			for attempt := 1; attempt <= m.retryLimit; attempt++ {
+				m.notifyPrinting(current.ticket, attempt)
 				if printer.driver.Health() != StatusReady {
 					_ = printer.driver.Connect()
 				}
 				err = printer.driver.Print(data)
 				if err == nil {
 					printer.printed.Add(1)
+					m.notifyPrinted(current.ticket, attempt)
 					break
 				}
 				time.Sleep(time.Duration(attempt) * 10 * time.Millisecond)
 			}
 			if err != nil {
 				printer.failed.Add(1)
+				m.notifyFailed(current.ticket, m.retryLimit, err)
 				_ = printer.driver.Disconnect()
 			}
 		}
+	}
+}
+func (m *Manager) notifyPrinting(ticket Ticket, attempt int) {
+	m.mu.RLock()
+	observer := m.observer
+	m.mu.RUnlock()
+	if observer != nil {
+		observer.Printing(m.ctx, ticket, attempt)
+	}
+}
+func (m *Manager) notifyPrinted(ticket Ticket, attempt int) {
+	m.mu.RLock()
+	observer := m.observer
+	m.mu.RUnlock()
+	if observer != nil {
+		observer.Printed(m.ctx, ticket, attempt)
+	}
+}
+func (m *Manager) notifyFailed(ticket Ticket, attempt int, err error) {
+	m.mu.RLock()
+	observer := m.observer
+	m.mu.RUnlock()
+	if observer != nil {
+		observer.Failed(m.ctx, ticket, attempt, err)
 	}
 }
 func (m *Manager) Health() []PrinterHealth {

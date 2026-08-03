@@ -21,7 +21,7 @@ func TestManagerPrintsAndReprints(t *testing.T) {
 		t.Fatal(err)
 	}
 	waitForPrints(t, driver, 1)
-	if err := manager.Reprint(context.Background(), ticket.OrderID); err != nil {
+	if err := manager.Reprint(context.Background(), ticket.OrderID, ""); err != nil {
 		t.Fatal(err)
 	}
 	waitForPrints(t, driver, 2)

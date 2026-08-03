@@ -17,6 +17,7 @@ import (
 	"github.com/restaurantautomation/api/internal/inventory"
 	"github.com/restaurantautomation/api/internal/orders"
 	"github.com/restaurantautomation/api/internal/printers"
+	"github.com/restaurantautomation/api/internal/printqueue"
 	"github.com/restaurantautomation/api/internal/settings"
 	"github.com/restaurantautomation/api/internal/staff"
 	"github.com/restaurantautomation/api/internal/tables"
@@ -28,6 +29,7 @@ type Dependencies struct {
 	Readiness      handlers.ReadinessChecker
 	AuditLogReader handlers.OperationalEventReader
 	Database       handlers.DatabaseInspector
+	PrintQueue     *printqueue.Service
 }
 
 func NewRouter(cfg *config.Config, log zerolog.Logger, engine *automation.Engine, registry *integrations.Registry, printerManager *printers.Manager, analyticsService *analytics.Service, intelligenceService *intelligence.Service, orderService *orders.Service, tableService *tables.Service, inventoryService *inventory.Service, staffService *staff.Service, alertService *alerts.Service, settingsService *settings.Service, dependencies ...Dependencies) *chi.Mux {
@@ -70,8 +72,9 @@ func NewRouter(cfg *config.Config, log zerolog.Logger, engine *automation.Engine
 		r.Get("/analytics/overview", handlers.AnalyticsOverview(analyticsService))
 		r.Get("/integrations", handlers.Integrations(registry))
 		r.Get("/printers", handlers.Printers(printerManager))
-		r.Post("/printers/tickets", handlers.PrintTicket(printerManager))
-		r.Post("/printers/tickets/{orderID}/reprint", handlers.ReprintTicket(printerManager))
+		r.Get("/printers/queue", handlers.PrintQueue(dependenciesConfig.PrintQueue))
+		r.Post("/printers/tickets", handlers.PrintTicket(printerManager, dependenciesConfig.PrintQueue))
+		r.Post("/printers/tickets/{orderID}/reprint", handlers.ReprintTicket(printerManager, dependenciesConfig.PrintQueue))
 		r.Route("/automation", func(r chi.Router) {
 			r.Post("/orders", handlers.SubmitAutomationOrder(engine))
 			r.Get("/events", handlers.AutomationEvents(engine))
