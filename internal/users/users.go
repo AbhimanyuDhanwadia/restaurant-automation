@@ -28,6 +28,11 @@ type User struct {
 	UpdatedAt   time.Time `json:"updated_at"`
 }
 
+type Access struct {
+	User        User     `json:"user"`
+	Permissions []string `json:"permissions"`
+}
+
 type Repository interface {
 	Observe(context.Context, User) error
 	Get(context.Context, string) (User, error)
@@ -95,19 +100,28 @@ func (s *Service) UpdateRole(ctx context.Context, subject, roleID string) (User,
 }
 
 func (s *Service) Permissions(ctx context.Context, subject string) ([]string, error) {
-	user, err := s.repository.Get(ctx, strings.TrimSpace(subject))
+	access, err := s.Access(ctx, subject)
 	if err != nil {
 		return nil, err
+	}
+	return access.Permissions, nil
+}
+
+func (s *Service) Access(ctx context.Context, subject string) (Access, error) {
+	user, err := s.repository.Get(ctx, strings.TrimSpace(subject))
+	if err != nil {
+		return Access{}, err
 	}
 	roleCatalog, err := s.rolesByID(ctx)
 	if err != nil {
-		return nil, err
+		return Access{}, err
 	}
 	role, ok := roleCatalog[user.RoleID]
 	if !ok {
-		return nil, ErrInvalidRole
+		return Access{}, ErrInvalidRole
 	}
-	return append([]string(nil), role.Permissions...), nil
+	user.RoleName = role.Name
+	return Access{User: user, Permissions: append([]string(nil), role.Permissions...)}, nil
 }
 
 func (s *Service) decorateRoles(ctx context.Context, users []User) ([]User, error) {

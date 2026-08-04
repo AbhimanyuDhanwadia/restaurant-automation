@@ -81,6 +81,10 @@ func TestPermissionsFollowAssignedRole(t *testing.T) {
 	if err != nil || !contains(permissions, "users.manage") || !contains(permissions, "backups.manage") {
 		t.Fatalf("administrator permissions = %#v error = %v", permissions, err)
 	}
+	access, err := service.Access(context.Background(), "operator-subject")
+	if err != nil || access.User.RoleName != "Administrator" {
+		t.Fatalf("access = %#v error = %v", access, err)
+	}
 }
 
 func contains(values []string, expected string) bool {

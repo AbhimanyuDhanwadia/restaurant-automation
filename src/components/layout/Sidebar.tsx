@@ -26,7 +26,7 @@ type NavIcon = ComponentType<{ size?: number; "aria-hidden"?: "true" }>;
 
 const NAV_GROUPS: Array<{
   label: string;
-  items: Array<{ to: string; label: string; icon: NavIcon; disabled?: boolean }>;
+  items: Array<{ to: string; label: string; icon: NavIcon; requiredPermission?: string }>;
 }> = [
   {
     label: "Workspace",
@@ -49,40 +49,44 @@ const NAV_GROUPS: Array<{
   {
     label: "Automation",
     items: [
-      { to: "/automation", label: "Automation Overview", icon: Activity },
-      { to: "/automation/order-engine", label: "Order Engine", icon: ListChecks },
-      { to: "/automation/integrations", label: "Integrations", icon: PlugZap },
-      { to: "/automation/print-queue", label: "Print Queue", icon: Printer },
-      { to: "/automation/printers", label: "Printers", icon: Printer },
-      { to: "/automation/system-health", label: "System Health", icon: Activity },
-      { to: "/automation/event-logs", label: "Event Logs", icon: ScrollText },
-      { to: "/automation/queue-monitor", label: "Queue Monitor", icon: ListChecks },
+      { to: "/automation", label: "Automation Overview", icon: Activity, requiredPermission: "automation.view" },
+      { to: "/automation/order-engine", label: "Order Engine", icon: ListChecks, requiredPermission: "automation.view" },
+      { to: "/automation/integrations", label: "Integrations", icon: PlugZap, requiredPermission: "integrations.manage" },
+      { to: "/automation/print-queue", label: "Print Queue", icon: Printer, requiredPermission: "printers.manage" },
+      { to: "/automation/printers", label: "Printers", icon: Printer, requiredPermission: "printers.manage" },
+      { to: "/automation/system-health", label: "System Health", icon: Activity, requiredPermission: "automation.view" },
+      { to: "/automation/event-logs", label: "Event Logs", icon: ScrollText, requiredPermission: "automation.view" },
+      { to: "/automation/queue-monitor", label: "Queue Monitor", icon: ListChecks, requiredPermission: "automation.view" },
     ],
   },
   {
     label: "Analytics",
     items: [
-      { to: "/analytics", label: "Reports", icon: BarChart3 },
-      { to: "/analytics/sales", label: "Sales", icon: BarChart3 },
-      { to: "/analytics/kitchen", label: "Kitchen Performance", icon: ChefHat },
-      { to: "/analytics/delivery", label: "Delivery Performance", icon: ReceiptText },
-      { to: "/analytics/inventory", label: "Inventory Analytics", icon: PackageSearch },
+      { to: "/analytics", label: "Reports", icon: BarChart3, requiredPermission: "analytics.view" },
+      { to: "/analytics/sales", label: "Sales", icon: BarChart3, requiredPermission: "analytics.view" },
+      { to: "/analytics/kitchen", label: "Kitchen Performance", icon: ChefHat, requiredPermission: "analytics.view" },
+      { to: "/analytics/delivery", label: "Delivery Performance", icon: ReceiptText, requiredPermission: "analytics.view" },
+      { to: "/analytics/inventory", label: "Inventory Analytics", icon: PackageSearch, requiredPermission: "analytics.view" },
     ],
   },
   {
     label: "Administration",
     items: [
-      { to: "/settings", label: "Settings", icon: Settings },
-      { to: "/admin/users", label: "Users", icon: UsersRound },
-      { to: "/admin/roles", label: "Roles", icon: ShieldCheck },
-      { to: "/admin/database", label: "Database", icon: Database },
-      { to: "/admin/audit-logs", label: "Audit Logs", icon: FileClock },
-      { to: "/admin/backups", label: "Backups", icon: Archive },
+      { to: "/settings", label: "Settings", icon: Settings, requiredPermission: "settings.manage" },
+      { to: "/admin/users", label: "Users", icon: UsersRound, requiredPermission: "users.manage" },
+      { to: "/admin/roles", label: "Roles", icon: ShieldCheck, requiredPermission: "roles.manage" },
+      { to: "/admin/database", label: "Database", icon: Database, requiredPermission: "database.view" },
+      { to: "/admin/audit-logs", label: "Audit Logs", icon: FileClock, requiredPermission: "audit.view" },
+      { to: "/admin/backups", label: "Backups", icon: Archive, requiredPermission: "backups.manage" },
     ],
   },
 ];
 
-export function Sidebar() {
+interface SidebarProps {
+  permissions?: string[];
+}
+
+export function Sidebar({ permissions }: SidebarProps) {
   return (
     <aside className="sidebar" aria-label="Primary navigation">
       <div className="brand">
@@ -90,15 +94,13 @@ export function Sidebar() {
         <span>Restaurant Automation</span>
       </div>
       <nav>
-        {NAV_GROUPS.map((group) => (
+        {NAV_GROUPS.map((group) => {
+          const items = permissions ? group.items.filter((item) => !item.requiredPermission || permissions.includes(item.requiredPermission)) : group.items;
+          if (items.length === 0) return null;
+          return (
           <div className="nav-group" key={group.label}>
             <p className="nav-group-label">{group.label}</p>
-            {group.items.map(({ to, label, icon: Icon, disabled }) => disabled ? (
-              <button className="disabled-nav" disabled key={to} title="Available in a later phase">
-                <Icon size={17} aria-hidden="true" />
-                {label}
-              </button>
-            ) : (
+            {items.map(({ to, label, icon: Icon }) => (
               <Link
                 key={to}
                 to={to}
@@ -110,7 +112,8 @@ export function Sidebar() {
               </Link>
             ))}
           </div>
-        ))}
+          );
+        })}
       </nav>
     </aside>
   );

@@ -16,3 +16,5 @@ The protected API capabilities are:
 - `backups.manage`: backup artifact catalog
 
 Restaurant operations endpoints remain authenticated but are not permission-gated in this rollout. The `ADMIN_EMAILS` setting only assigns the Administrator role on a user's first observed request; it does not bypass subsequent permission checks.
+
+`GET /api/v1/me` returns the verified subject and email together with the local role and current permissions. The authenticated frontend uses this profile to hide protected navigation destinations after it has loaded. The API remains authoritative and returns `403` for a manually entered protected route without the required permission.

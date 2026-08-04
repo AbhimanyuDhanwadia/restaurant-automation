@@ -12,9 +12,11 @@
  */
 
 import { Outlet, useLocation } from "@tanstack/react-router";
+import { useQuery } from "@tanstack/react-query";
 import type { Session } from "@supabase/supabase-js";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { Topbar } from "@/components/layout/Topbar";
+import { getCurrentUserAccess } from "@/features/auth/api";
 
 const PAGE_META: Record<string, { eyebrow: string; title: string }> = {
   "/": { eyebrow: "Dinner service", title: "Live Operations" },
@@ -31,6 +33,7 @@ const PAGE_META: Record<string, { eyebrow: string; title: string }> = {
   "/analytics/delivery": { eyebrow: "Performance view", title: "Delivery Performance" },
   "/analytics/inventory": { eyebrow: "Performance view", title: "Inventory Analytics" },
   "/settings": { eyebrow: "Administration", title: "Settings" },
+  "/admin/users": { eyebrow: "Administration", title: "Users" },
   "/admin/roles": { eyebrow: "Administration", title: "Roles" },
   "/admin/backups": { eyebrow: "Administration", title: "Backups" },
   "/automation": { eyebrow: "Developer operations", title: "Automation Overview" },
@@ -44,10 +47,11 @@ interface AppShellProps {
 export function AppShell({ session }: AppShellProps) {
   const location = useLocation();
   const meta = PAGE_META[location.pathname] ?? { eyebrow: "Restaurant Automation", title: "Dashboard" };
+  const accessQuery = useQuery({ queryKey: ["auth", "current-user"], queryFn: getCurrentUserAccess, retry: false, staleTime: 60_000 });
 
   return (
     <main className="app-shell">
-      <Sidebar />
+      <Sidebar permissions={accessQuery.data?.permissions} />
       <section className="workspace">
         <Topbar
           eyebrow={meta.eyebrow}

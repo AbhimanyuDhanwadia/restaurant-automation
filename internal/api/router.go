@@ -71,7 +71,7 @@ func NewRouter(cfg *config.Config, log zerolog.Logger, engine *automation.Engine
 	r.Route("/api/v1", func(r chi.Router) {
 		r.Use(appm.Auth(cfg.Auth))
 		r.Use(appm.TrackUser(dependenciesConfig.Users))
-		r.Get("/me", handlers.CurrentUser())
+		r.Get("/me", handlers.CurrentUser(dependenciesConfig.Users))
 		r.With(appm.RequirePermission(dependenciesConfig.Users, "automation.view")).Get("/system/health", handlers.SystemHealth(engine, registry, printerManager, checker))
 		r.With(appm.RequirePermission(dependenciesConfig.Users, "audit.view")).Get("/admin/audit-logs", handlers.AuditLogs(engine, dependenciesConfig.AuditLogReader))
 		r.With(appm.RequirePermission(dependenciesConfig.Users, "database.view")).Get("/admin/database", handlers.DatabaseStatus(dependenciesConfig.Database))

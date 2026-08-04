@@ -11,7 +11,10 @@ export function UsersPage() {
   const rolesQuery = useQuery({ queryKey: ["admin", "roles"], queryFn: listRoles });
   const roleMutation = useMutation({
     mutationFn: updateUserRole,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["admin", "users"] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin", "users"] });
+      queryClient.invalidateQueries({ queryKey: ["auth", "current-user"] });
+    },
   });
   const users = usersQuery.data ?? [];
   const roles = rolesQuery.data ?? [];
