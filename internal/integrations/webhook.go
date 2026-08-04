@@ -9,12 +9,17 @@ import (
 	"errors"
 	"strings"
 	"sync"
+	"time"
 )
 
 var ErrWebhookUnsupported = errors.New("provider does not accept webhooks")
 var ErrInvalidWebhookSignature = errors.New("invalid webhook signature")
 var ErrInvalidWebhookPayload = errors.New("invalid webhook payload")
 var ErrWebhookQueueFull = errors.New("webhook order queue is full")
+var ErrWebhookDuplicate = errors.New("duplicate webhook order")
+
+const webhookDedupeWindow = 15 * time.Minute
+const maxRememberedWebhookOrders = 10_000
 
 type WebhookProvider struct {
 	name   string
@@ -22,13 +27,17 @@ type WebhookProvider struct {
 	orders chan Order
 	mu     sync.RWMutex
 	status Status
+
+	dedupeMu sync.Mutex
+	accepted map[string]time.Time
+	now      func() time.Time
 }
 
 func NewWebhookProvider(name, secret string, buffer int) *WebhookProvider {
 	if buffer < 1 {
 		buffer = 1
 	}
-	return &WebhookProvider{name: name, secret: []byte(secret), orders: make(chan Order, buffer), status: StatusDisconnected}
+	return &WebhookProvider{name: name, secret: []byte(secret), orders: make(chan Order, buffer), status: StatusDisconnected, accepted: make(map[string]time.Time), now: time.Now}
 }
 func (p *WebhookProvider) Name() string { return p.name }
 func (p *WebhookProvider) Connect() error {
@@ -58,11 +67,42 @@ func (p *WebhookProvider) ReceiveWebhook(body []byte, signature string) error {
 		return ErrInvalidWebhookPayload
 	}
 	order := Order{ID: strings.TrimSpace(payload.OrderID), Provider: p.name, Payload: payload.Payload}
+	return p.enqueueOrder(order)
+}
+
+func (p *WebhookProvider) enqueueOrder(order Order) error {
+	now := p.now().UTC()
+	p.dedupeMu.Lock()
+	defer p.dedupeMu.Unlock()
+	p.pruneAccepted(now)
+	if _, exists := p.accepted[order.ID]; exists {
+		return ErrWebhookDuplicate
+	}
 	select {
 	case p.orders <- order:
+		p.accepted[order.ID] = now
 		return nil
 	default:
 		return ErrWebhookQueueFull
+	}
+}
+
+func (p *WebhookProvider) pruneAccepted(now time.Time) {
+	cutoff := now.Add(-webhookDedupeWindow)
+	oldestID := ""
+	var oldest time.Time
+	for orderID, acceptedAt := range p.accepted {
+		if !acceptedAt.After(cutoff) {
+			delete(p.accepted, orderID)
+			continue
+		}
+		if oldestID == "" || acceptedAt.Before(oldest) {
+			oldestID = orderID
+			oldest = acceptedAt
+		}
+	}
+	if len(p.accepted) >= maxRememberedWebhookOrders && oldestID != "" {
+		delete(p.accepted, oldestID)
 	}
 }
 

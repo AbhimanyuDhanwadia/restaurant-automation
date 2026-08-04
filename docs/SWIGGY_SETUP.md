@@ -22,6 +22,13 @@ The endpoint is public only for delivery from Swiggy. It verifies the raw
 payload with `X-Webhook-Signature` using HMAC-SHA256 before placing the order
 on the provider collector queue.
 
+For the current neutral order envelope, an accepted `order_id` is remembered
+in memory for 15 minutes. A duplicate signed delivery returns HTTP `202` with
+`{"status":"duplicate"}` and is not queued again. This prevents duplicate
+automation and print work during normal webhook retries. The memory window is
+reset when the API restarts and is not a substitute for a provider-specified
+timestamp or nonce scheme.
+
 ## Current Payload Boundary
 
 Until Swiggy supplies the POS webhook schema, the receiver expects this
@@ -39,7 +46,7 @@ mapping. Do not send production traffic until the following are confirmed with
 the Swiggy partner team:
 
 1. Exact webhook URL registration and retry behavior.
-2. Signature header name, signing algorithm, and timestamp/replay protection.
+2. Signature header name, signing algorithm, and timestamp/nonce replay protection.
 3. Order payload schema, including line items and order status events.
 4. Required acknowledgement and status-update APIs.
 5. Sandbox credentials and production rollout process.

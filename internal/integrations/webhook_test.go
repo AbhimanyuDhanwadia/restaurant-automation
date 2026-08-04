@@ -27,3 +27,25 @@ func TestWebhookProviderRejectsInvalidSignature(t *testing.T) {
 		t.Fatalf("error = %v", err)
 	}
 }
+
+func TestWebhookProviderDeduplicatesAcceptedOrder(t *testing.T) {
+	provider := NewWebhookProvider("partner", "secret", 2)
+	body := []byte(`{"order_id":"ORD-601"}`)
+	mac := hmac.New(sha256.New, []byte("secret"))
+	mac.Write(body)
+	signature := hex.EncodeToString(mac.Sum(nil))
+	if err := provider.ReceiveWebhook(body, signature); err != nil {
+		t.Fatal(err)
+	}
+	if err := provider.ReceiveWebhook(body, signature); err != ErrWebhookDuplicate {
+		t.Fatalf("error = %v, want duplicate", err)
+	}
+	if order := <-provider.ReceiveOrders(); order.ID != "ORD-601" {
+		t.Fatalf("order = %#v", order)
+	}
+	select {
+	case order := <-provider.ReceiveOrders():
+		t.Fatalf("unexpected duplicate order = %#v", order)
+	default:
+	}
+}
