@@ -1148,6 +1148,21 @@ h2 {
 .role-permission-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
 .role-permission-grid label { display: flex; align-items: center; gap: 7px; min-width: 0; color: #46534e; font-size: 0.82rem; }
 .role-permission-grid input { width: 16px; height: 16px; accent-color: #b8472b; }
+.backups-workspace { display: grid; gap: 18px; }
+.backups-grid { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(280px, 0.8fr); gap: 18px; }
+.backup-record-list { display: grid; }
+.backup-record-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; min-height: 64px; border-top: 1px solid #ece7df; }
+.backup-record-row:first-child { border-top: 0; }
+.backup-record-row > div { display: grid; gap: 5px; min-width: 0; }
+.backup-record-row strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.backup-record-row span { color: #65716d; font-size: 0.8rem; }
+.backup-status-recorded, .backup-status-verified, .backup-status-failed { flex: 0 0 auto; padding: 5px 8px; border-radius: 999px; font-size: 0.72rem !important; font-weight: 800; }
+.backup-status-recorded { background: #edf0e7; color: #46534e !important; }
+.backup-status-verified { background: #e5f6ea; color: #1f6b36 !important; }
+.backup-status-failed { background: #ffe9df; color: #a43b21 !important; }
+.backup-record-form { display: grid; gap: 14px; }
+.backup-record-form label { display: grid; gap: 7px; color: #26352f; font-weight: 800; }
+.backup-record-form input { min-height: 40px; padding: 0 10px; border: 1px solid #d9d4ca; border-radius: 8px; background: #fff; color: #19211d; font: inherit; }
 
 .settings-grid {
   display: grid;
@@ -1582,6 +1597,7 @@ h2 {
   .sales-grid { grid-template-columns: 1fr; }
   .delivery-performance-grid { grid-template-columns: 1fr; }
   .roles-grid { grid-template-columns: 1fr; }
+  .backups-grid { grid-template-columns: 1fr; }
   .order-engine-grid { grid-template-columns: 1fr; }
   .engine-pipeline { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .event-log-controls { align-items: stretch; flex-direction: column; }
@@ -1640,6 +1656,7 @@ h2 {
   .delivery-order-row .status { grid-column: 1; justify-self: start; }
   .roles-grid { grid-template-columns: 1fr; }
   .role-permission-grid { grid-template-columns: 1fr; }
+  .backups-grid { grid-template-columns: 1fr; }
   .kitchen-performance-order { grid-template-columns: minmax(0, 1fr) auto; gap: 8px; padding: 12px 0; }
   .kitchen-performance-order .status { grid-column: 1; justify-self: start; }
   .engine-pipeline { grid-template-columns: 1fr; }

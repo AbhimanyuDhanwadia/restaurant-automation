@@ -32,6 +32,7 @@ const PAGE_META: Record<string, { eyebrow: string; title: string }> = {
   "/analytics/inventory": { eyebrow: "Performance view", title: "Inventory Analytics" },
   "/settings": { eyebrow: "Administration", title: "Settings" },
   "/admin/roles": { eyebrow: "Administration", title: "Roles" },
+  "/admin/backups": { eyebrow: "Administration", title: "Backups" },
   "/automation": { eyebrow: "Developer operations", title: "Automation Overview" },
   "/automation/order-engine": { eyebrow: "Developer operations", title: "Order Engine" },
 };

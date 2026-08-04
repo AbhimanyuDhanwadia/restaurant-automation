@@ -11,6 +11,7 @@ import (
 	"github.com/restaurantautomation/api/internal/api/handlers"
 	appm "github.com/restaurantautomation/api/internal/api/middleware"
 	"github.com/restaurantautomation/api/internal/automation"
+	"github.com/restaurantautomation/api/internal/backups"
 	"github.com/restaurantautomation/api/internal/config"
 	"github.com/restaurantautomation/api/internal/integrations"
 	"github.com/restaurantautomation/api/internal/intelligence"
@@ -32,6 +33,7 @@ type Dependencies struct {
 	Database       handlers.DatabaseInspector
 	PrintQueue     *printqueue.Service
 	Roles          *roles.Service
+	Backups        *backups.Service
 }
 
 func NewRouter(cfg *config.Config, log zerolog.Logger, engine *automation.Engine, registry *integrations.Registry, printerManager *printers.Manager, analyticsService *analytics.Service, intelligenceService *intelligence.Service, orderService *orders.Service, tableService *tables.Service, inventoryService *inventory.Service, staffService *staff.Service, alertService *alerts.Service, settingsService *settings.Service, dependencies ...Dependencies) *chi.Mux {
@@ -72,6 +74,8 @@ func NewRouter(cfg *config.Config, log zerolog.Logger, engine *automation.Engine
 		r.Get("/admin/database", handlers.DatabaseStatus(dependenciesConfig.Database))
 		r.Get("/admin/roles", handlers.ListRoles(dependenciesConfig.Roles))
 		r.Post("/admin/roles", handlers.CreateRole(dependenciesConfig.Roles))
+		r.Get("/admin/backups", handlers.ListBackups(dependenciesConfig.Backups))
+		r.Post("/admin/backups", handlers.RecordBackup(dependenciesConfig.Backups))
 		r.Get("/insights", handlers.Insights(intelligenceService))
 		r.Get("/analytics/overview", handlers.AnalyticsOverview(analyticsService))
 		r.Get("/integrations", handlers.Integrations(registry))
