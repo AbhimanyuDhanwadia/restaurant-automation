@@ -99,13 +99,17 @@ func main() {
 		defer eventPersister.Close()
 	}
 	providers := integrations.NewRegistry()
+	receiptStore := integrations.WebhookReceiptStore(integrations.NewMemoryWebhookReceiptStore())
+	if databasePool != nil {
+		receiptStore = integrations.NewPostgresWebhookReceiptStore(databasePool)
+	}
 	providers.Register(integrations.NewMockProvider("mock", 100))
 	if cfg.Integrations.WebhookProviderName != "" {
-		providers.Register(integrations.NewWebhookProvider(cfg.Integrations.WebhookProviderName, cfg.Integrations.WebhookSecret, 100))
+		providers.Register(integrations.NewWebhookProviderWithReceipts(cfg.Integrations.WebhookProviderName, cfg.Integrations.WebhookSecret, 100, receiptStore))
 		log.Info().Str("provider", cfg.Integrations.WebhookProviderName).Msg("signed webhook provider enabled")
 	}
 	if cfg.Integrations.SwiggyWebhookSecret != "" {
-		providers.Register(integrations.NewWebhookProvider("swiggy", cfg.Integrations.SwiggyWebhookSecret, 100))
+		providers.Register(integrations.NewWebhookProviderWithReceipts("swiggy", cfg.Integrations.SwiggyWebhookSecret, 100, receiptStore))
 		log.Info().Msg("Swiggy signed webhook provider enabled")
 	}
 	if err := providers.StartCollectors(context.Background(), func(ctx context.Context, order integrations.Order) error { return engine.SubmitOrder(ctx, order.ID) }); err != nil {

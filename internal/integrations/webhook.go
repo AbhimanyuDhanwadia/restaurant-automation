@@ -1,6 +1,7 @@
 package integrations
 
 import (
+	"context"
 	"crypto/hmac"
 	"crypto/sha256"
 	"crypto/subtle"
@@ -17,6 +18,7 @@ var ErrInvalidWebhookSignature = errors.New("invalid webhook signature")
 var ErrInvalidWebhookPayload = errors.New("invalid webhook payload")
 var ErrWebhookQueueFull = errors.New("webhook order queue is full")
 var ErrWebhookDuplicate = errors.New("duplicate webhook order")
+var ErrWebhookInProgress = errors.New("webhook order is being processed")
 
 const webhookDedupeWindow = 15 * time.Minute
 const maxRememberedWebhookOrders = 10_000
@@ -31,13 +33,21 @@ type WebhookProvider struct {
 	dedupeMu sync.Mutex
 	accepted map[string]time.Time
 	now      func() time.Time
+	receipts WebhookReceiptStore
 }
 
 func NewWebhookProvider(name, secret string, buffer int) *WebhookProvider {
+	return NewWebhookProviderWithReceipts(name, secret, buffer, NewMemoryWebhookReceiptStore())
+}
+
+func NewWebhookProviderWithReceipts(name, secret string, buffer int, receipts WebhookReceiptStore) *WebhookProvider {
 	if buffer < 1 {
 		buffer = 1
 	}
-	return &WebhookProvider{name: name, secret: []byte(secret), orders: make(chan Order, buffer), status: StatusDisconnected, accepted: make(map[string]time.Time), now: time.Now}
+	if receipts == nil {
+		receipts = NewMemoryWebhookReceiptStore()
+	}
+	return &WebhookProvider{name: name, secret: []byte(secret), orders: make(chan Order, buffer), status: StatusDisconnected, accepted: make(map[string]time.Time), now: time.Now, receipts: receipts}
 }
 func (p *WebhookProvider) Name() string { return p.name }
 func (p *WebhookProvider) Connect() error {
@@ -55,7 +65,7 @@ func (p *WebhookProvider) Disconnect() error {
 func (p *WebhookProvider) Health() Status              { p.mu.RLock(); defer p.mu.RUnlock(); return p.status }
 func (p *WebhookProvider) ReceiveOrders() <-chan Order { return p.orders }
 
-func (p *WebhookProvider) ReceiveWebhook(body []byte, signature string) error {
+func (p *WebhookProvider) ReceiveWebhook(ctx context.Context, body []byte, signature string) error {
 	if !p.validSignature(body, signature) {
 		return ErrInvalidWebhookSignature
 	}
@@ -67,10 +77,10 @@ func (p *WebhookProvider) ReceiveWebhook(body []byte, signature string) error {
 		return ErrInvalidWebhookPayload
 	}
 	order := Order{ID: strings.TrimSpace(payload.OrderID), Provider: p.name, Payload: payload.Payload}
-	return p.enqueueOrder(order)
+	return p.enqueueOrder(ctx, order)
 }
 
-func (p *WebhookProvider) enqueueOrder(order Order) error {
+func (p *WebhookProvider) enqueueOrder(ctx context.Context, order Order) error {
 	now := p.now().UTC()
 	p.dedupeMu.Lock()
 	defer p.dedupeMu.Unlock()
@@ -78,11 +88,27 @@ func (p *WebhookProvider) enqueueOrder(order Order) error {
 	if _, exists := p.accepted[order.ID]; exists {
 		return ErrWebhookDuplicate
 	}
+	claim, err := p.receipts.Claim(ctx, p.name, order.ID, now, now.Add(webhookDedupeWindow))
+	if err != nil {
+		return err
+	}
+	if claim == WebhookReceiptDuplicate {
+		return ErrWebhookDuplicate
+	}
+	if claim == WebhookReceiptInProgress {
+		return ErrWebhookInProgress
+	}
 	select {
 	case p.orders <- order:
+		if err := p.receipts.Confirm(ctx, p.name, order.ID); err != nil {
+			return err
+		}
 		p.accepted[order.ID] = now
 		return nil
 	default:
+		if err := p.receipts.Release(ctx, p.name, order.ID); err != nil {
+			return err
+		}
 		return ErrWebhookQueueFull
 	}
 }
@@ -117,9 +143,11 @@ func (p *WebhookProvider) validSignature(body []byte, signature string) bool {
 	return subtle.ConstantTimeCompare(expected.Sum(nil), supplied) == 1
 }
 
-type WebhookReceiver interface{ ReceiveWebhook([]byte, string) error }
+type WebhookReceiver interface {
+	ReceiveWebhook(context.Context, []byte, string) error
+}
 
-func (r *Registry) ReceiveWebhook(providerName string, body []byte, signature string) error {
+func (r *Registry) ReceiveWebhook(ctx context.Context, providerName string, body []byte, signature string) error {
 	provider, err := r.Get(providerName)
 	if err != nil {
 		return err
@@ -128,5 +156,5 @@ func (r *Registry) ReceiveWebhook(providerName string, body []byte, signature st
 	if !ok {
 		return ErrWebhookUnsupported
 	}
-	return receiver.ReceiveWebhook(body, signature)
+	return receiver.ReceiveWebhook(ctx, body, signature)
 }

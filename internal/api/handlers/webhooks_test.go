@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/restaurantautomation/api/internal/integrations"
@@ -67,5 +68,30 @@ func TestReceiveWebhookAcknowledgesDuplicateOrder(t *testing.T) {
 	}
 	if result["status"] != "duplicate" {
 		t.Fatalf("result = %#v", result)
+	}
+}
+
+func TestReceiveWebhookReturnsRetryableStatusForInProgressOrder(t *testing.T) {
+	receipts := integrations.NewMemoryWebhookReceiptStore()
+	now := time.Now().UTC()
+	if claim, err := receipts.Claim(context.Background(), "partner", "ORD-703", now, now.Add(15*time.Minute)); err != nil || claim != integrations.WebhookReceiptClaimed {
+		t.Fatalf("claim = %q error = %v", claim, err)
+	}
+	registry := integrations.NewRegistry()
+	if err := registry.Register(integrations.NewWebhookProviderWithReceipts("partner", "secret", 1, receipts)); err != nil {
+		t.Fatal(err)
+	}
+	body := []byte(`{"order_id":"ORD-703"}`)
+	mac := hmac.New(sha256.New, []byte("secret"))
+	mac.Write(body)
+	request := httptest.NewRequest(http.MethodPost, "/", bytes.NewReader(body))
+	request.Header.Set("X-Webhook-Signature", hex.EncodeToString(mac.Sum(nil)))
+	routeContext := chi.NewRouteContext()
+	routeContext.URLParams.Add("provider", "partner")
+	request = request.WithContext(context.WithValue(request.Context(), chi.RouteCtxKey, routeContext))
+	response := httptest.NewRecorder()
+	ReceiveWebhook(registry).ServeHTTP(response, request)
+	if response.Code != http.StatusServiceUnavailable {
+		t.Fatalf("status = %d, want %d", response.Code, http.StatusServiceUnavailable)
 	}
 }

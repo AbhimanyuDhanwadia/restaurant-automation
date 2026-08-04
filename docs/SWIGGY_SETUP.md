@@ -23,11 +23,15 @@ payload with `X-Webhook-Signature` using HMAC-SHA256 before placing the order
 on the provider collector queue.
 
 For the current neutral order envelope, an accepted `order_id` is remembered
-in memory for 15 minutes. A duplicate signed delivery returns HTTP `202` with
+for 15 minutes. A duplicate signed delivery returns HTTP `202` with
 `{"status":"duplicate"}` and is not queued again. This prevents duplicate
-automation and print work during normal webhook retries. The memory window is
-reset when the API restarts and is not a substitute for a provider-specified
-timestamp or nonce scheme.
+automation and print work during normal webhook retries. With PostgreSQL
+configured, receipts survive API restarts and are shared across instances;
+without it, the local in-memory fallback resets on restart. This is not a
+substitute for a provider-specified timestamp or nonce scheme.
+
+If another API instance is currently processing the same order, the endpoint
+returns a retryable HTTP `503` rather than acknowledging it as a duplicate.
 
 ## Current Payload Boundary
 

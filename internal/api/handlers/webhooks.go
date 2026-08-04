@@ -16,12 +16,14 @@ func ReceiveWebhook(registry *integrations.Registry) http.HandlerFunc {
 			http.Error(w, "invalid webhook body", http.StatusBadRequest)
 			return
 		}
-		err = registry.ReceiveWebhook(chi.URLParam(r, "provider"), body, r.Header.Get("X-Webhook-Signature"))
+		err = registry.ReceiveWebhook(r.Context(), chi.URLParam(r, "provider"), body, r.Header.Get("X-Webhook-Signature"))
 		switch {
 		case err == nil:
 			writeJSON(w, http.StatusAccepted, map[string]string{"status": "accepted"})
 		case errors.Is(err, integrations.ErrWebhookDuplicate):
 			writeJSON(w, http.StatusAccepted, map[string]string{"status": "duplicate"})
+		case errors.Is(err, integrations.ErrWebhookInProgress):
+			http.Error(w, "webhook order is still being processed", http.StatusServiceUnavailable)
 		case errors.Is(err, integrations.ErrProviderNotFound), errors.Is(err, integrations.ErrWebhookUnsupported):
 			http.NotFound(w, r)
 		case errors.Is(err, integrations.ErrInvalidWebhookSignature):
