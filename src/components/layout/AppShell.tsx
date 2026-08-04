@@ -26,8 +26,12 @@ const PAGE_META: Record<string, { eyebrow: string; title: string }> = {
   "/staff": { eyebrow: "Shift handoff", title: "Staff" },
   "/alerts": { eyebrow: "Attention queue", title: "Alerts" },
   "/analytics": { eyebrow: "Performance view", title: "Analytics" },
+  "/analytics/sales": { eyebrow: "Performance view", title: "Sales" },
+  "/analytics/kitchen": { eyebrow: "Performance view", title: "Kitchen Performance" },
+  "/analytics/inventory": { eyebrow: "Performance view", title: "Inventory Analytics" },
   "/settings": { eyebrow: "Administration", title: "Settings" },
   "/automation": { eyebrow: "Developer operations", title: "Automation Overview" },
+  "/automation/order-engine": { eyebrow: "Developer operations", title: "Order Engine" },
 };
 
 interface AppShellProps {

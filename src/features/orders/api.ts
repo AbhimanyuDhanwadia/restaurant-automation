@@ -12,6 +12,8 @@ export interface Order {
   channel: string;
   status: OrderStatus;
   notes?: string;
+  total_minor: number | null;
+  currency?: string;
   items: OrderItem[];
   created_at: string;
   updated_at: string;
@@ -20,6 +22,8 @@ export interface Order {
 export interface CreateOrderInput {
   channel: string;
   notes?: string;
+  total_minor?: number;
+  currency?: string;
   items: OrderItem[];
 }
 

@@ -3,10 +3,14 @@ import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Panel, PanelHeading } from "@/components/ui/Panel";
-import { getAnalyticsOverview, type Metric } from "@/features/analytics/api";
+import { getAnalyticsOverview, type Metric, type MonetaryMetric } from "@/features/analytics/api";
 
 function metricValue(metric: Metric | undefined, suffix = "") {
   return metric?.available ? `${metric.value}${suffix}` : "Unavailable";
+}
+
+function moneyValue(metric: MonetaryMetric | undefined) {
+  return metric?.available ? new Intl.NumberFormat(undefined, { style: "currency", currency: metric.currency }).format(metric.value) : "Unavailable";
 }
 
 function hourLabel(hour: number) {
@@ -46,7 +50,7 @@ export function AnalyticsPage() {
 
       <section className="analytics-metric-grid" aria-label="Analytics summary">
         <article className="stat-card"><ReceiptText size={22} aria-hidden="true" /><div><span>Orders</span><strong>{metricValue(report?.orders)}</strong><small>Captured events</small></div></article>
-        <article className="stat-card"><BarChart3 size={22} aria-hidden="true" /><div><span>Sales</span><strong>{metricValue(report?.sales)}</strong><small>Order totals required</small></div></article>
+        <article className="stat-card"><BarChart3 size={22} aria-hidden="true" /><div><span>Sales</span><strong>{moneyValue(report?.sales)}</strong><small>{report?.sales.available ? `${report.sales.included_orders} totals recorded` : "Order totals required"}</small></div></article>
         <article className="stat-card"><ReceiptText size={22} aria-hidden="true" /><div><span>Printer availability</span><strong>{metricValue(report?.printer_availability, "%")}</strong><small>Registered printers</small></div></article>
         <article className="stat-card"><Clock3 size={22} aria-hidden="true" /><div><span>Kitchen completion</span><strong>{metricValue(report?.kitchen_completion, "%")}</strong><small>Orders queued</small></div></article>
       </section>
@@ -58,10 +62,10 @@ export function AnalyticsPage() {
           {!overviewQuery.isPending && !overviewQuery.isError && peakHours.length === 0 && <EmptyState message="No order-event volume is available yet." />}
           {peakHours.length > 0 && <div className="bar-chart" aria-label="Observed order volume by hour">{peakHours.map((entry) => <div className="bar-column" key={entry.hour}><span style={{ height: `${Math.max(12, (entry.orders / highestVolume) * 100)}%` }} /><small>{hourLabel(entry.hour)}</small></div>)}</div>}
         </Panel>
-        <Panel label="Operational performance"><PanelHeading eyebrow="Operational data" title="Key performance" /><div className="performance-list"><div><span>Printer tickets</span><strong>{metricValue(report?.printer_utilization)}</strong></div><div><span>Delivery time</span><strong>{metricValue(report?.delivery_time)}</strong></div><div><span>Staff productivity</span><strong>{metricValue(report?.staff_productivity)}</strong></div><div><span>Average ticket</span><strong>{metricValue(report?.average_ticket)}</strong></div></div></Panel>
+        <Panel label="Operational performance"><PanelHeading eyebrow="Operational data" title="Key performance" /><div className="performance-list"><div><span>Printer tickets</span><strong>{metricValue(report?.printer_utilization)}</strong></div><div><span>Delivery time</span><strong>{metricValue(report?.delivery_time)}</strong></div><div><span>Staff productivity</span><strong>{metricValue(report?.staff_productivity)}</strong></div><div><span>Average ticket</span><strong>{moneyValue(report?.average_ticket)}</strong></div></div></Panel>
       </div>
 
-      <Panel label="Analytics data quality"><PanelHeading eyebrow="Data coverage" title="Operational reporting" action={<Flame size={20} aria-hidden="true" />} /><p className="analytics-summary-copy">Order events and printer telemetry are live. Sales, delivery, and staff metrics will populate when persisted orders, delivery updates, and shift activity are connected to the reporting pipeline.</p></Panel>
+      <Panel label="Analytics data quality"><PanelHeading eyebrow="Data coverage" title="Operational reporting" action={<Flame size={20} aria-hidden="true" />} /><p className="analytics-summary-copy">Order events, printer telemetry, and recorded durable order totals are live. Delivery and staff metrics will populate when delivery updates and shift activity are connected to the reporting pipeline.</p></Panel>
     </section>
   );
 }

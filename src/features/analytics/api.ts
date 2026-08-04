@@ -5,11 +5,17 @@ export interface Metric {
   available: boolean;
 }
 
+export interface MonetaryMetric extends Metric {
+  currency: string;
+  included_orders: number;
+  excluded_orders: number;
+}
+
 export interface AnalyticsReport {
   generated_at: string;
   orders: Metric;
-  sales: Metric;
-  average_ticket: Metric;
+  sales: MonetaryMetric;
+  average_ticket: MonetaryMetric;
   kitchen_completion: Metric;
   delivery_time: Metric;
   printer_availability: Metric;

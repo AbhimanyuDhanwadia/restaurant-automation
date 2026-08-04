@@ -1116,6 +1116,8 @@ h2 {
 .inventory-risk-row > div:first-child span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .inventory-risk-row > div:last-child { display: grid; justify-items: end; gap: 6px; }
 .inventory-risk-row > strong { color: #a43b21; font-size: 0.82rem; white-space: nowrap; }
+.sales-workspace { display: grid; gap: 18px; }
+.sales-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
 
 .settings-grid {
   display: grid;
@@ -1547,6 +1549,7 @@ h2 {
   .queue-monitor-grid { grid-template-columns: 1fr; }
   .kitchen-performance-grid { grid-template-columns: 1fr; }
   .inventory-analytics-grid { grid-template-columns: 1fr; }
+  .sales-grid { grid-template-columns: 1fr; }
   .order-engine-grid { grid-template-columns: 1fr; }
   .engine-pipeline { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .event-log-controls { align-items: stretch; flex-direction: column; }

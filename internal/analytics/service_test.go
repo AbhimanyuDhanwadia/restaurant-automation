@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/restaurantautomation/api/internal/automation"
+	"github.com/restaurantautomation/api/internal/orders"
 	"github.com/restaurantautomation/api/internal/printers"
 )
 
@@ -29,7 +30,12 @@ func TestOverviewAggregatesOrderAndPrinterState(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer printerManager.Close()
-	report := NewService(engine, printerManager).Overview()
+	orderService := orders.NewService(orders.NewMemoryRepository())
+	total := int64(12550)
+	if _, err := orderService.Create(context.Background(), orders.CreateInput{Channel: "counter", TotalMinor: &total, Currency: "INR", Items: []orders.Item{{Name: "Paneer", Quantity: 1}}}); err != nil {
+		t.Fatal(err)
+	}
+	report := NewService(engine, printerManager, orderService).Overview(context.Background())
 	if !report.Orders.Available || report.Orders.Value != 1 {
 		t.Fatalf("orders = %+v", report.Orders)
 	}
@@ -38,5 +44,31 @@ func TestOverviewAggregatesOrderAndPrinterState(t *testing.T) {
 	}
 	if !report.KitchenCompletion.Available || report.KitchenCompletion.Value != 100 {
 		t.Fatalf("completion = %+v", report.KitchenCompletion)
+	}
+	if !report.Sales.Available || report.Sales.Value != 125.5 || report.Sales.Currency != "INR" {
+		t.Fatalf("sales = %+v", report.Sales)
+	}
+	if !report.AverageTicket.Available || report.AverageTicket.Value != 125.5 {
+		t.Fatalf("average ticket = %+v", report.AverageTicket)
+	}
+}
+
+func TestOverviewDoesNotCombineCurrencies(t *testing.T) {
+	engine := automation.NewEngine(1, 10, automation.RetryPolicy{MaxAttempts: 1})
+	printerManager := printers.NewManager(printers.ESCPosFormatter{}, 1)
+	orderService := orders.NewService(orders.NewMemoryRepository())
+	inrTotal := int64(10000)
+	usdTotal := int64(10000)
+	for _, input := range []orders.CreateInput{
+		{Channel: "counter", TotalMinor: &inrTotal, Currency: "INR", Items: []orders.Item{{Name: "Paneer", Quantity: 1}}},
+		{Channel: "counter", TotalMinor: &usdTotal, Currency: "USD", Items: []orders.Item{{Name: "Paneer", Quantity: 1}}},
+	} {
+		if _, err := orderService.Create(context.Background(), input); err != nil {
+			t.Fatal(err)
+		}
+	}
+	report := NewService(engine, printerManager, orderService).Overview(context.Background())
+	if report.Sales.Available || report.AverageTicket.Available || report.Sales.IncludedOrders != 2 {
+		t.Fatalf("sales = %+v average = %+v", report.Sales, report.AverageTicket)
 	}
 }

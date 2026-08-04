@@ -4,6 +4,6 @@ The Analytics workspace reads `GET /api/v1/analytics/overview` through the authe
 
 ## Data availability
 
-The API intentionally marks metrics as unavailable until their source data exists. At this stage, order events and printer telemetry can populate order count, kitchen completion, printer availability, printer utilization, and peak hours. Sales, delivery, staff, and average-ticket metrics require later durable data models.
+The API intentionally marks metrics as unavailable until their source data exists. At this stage, order events and printer telemetry populate order count, kitchen completion, printer availability, printer utilization, and peak hours. Recorded durable order totals populate sales and average-ticket metrics when eligible totals share one currency. Delivery and staff metrics require later durable data models.
 
 The interface does not substitute demo metrics if the service is unavailable. It displays the API error and provides a retry action instead.

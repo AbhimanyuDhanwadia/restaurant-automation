@@ -7,5 +7,7 @@ import (
 )
 
 func AnalyticsOverview(service *analytics.Service) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) { writeJSON(w, http.StatusOK, service.Overview()) }
+	return func(w http.ResponseWriter, r *http.Request) {
+		writeJSON(w, http.StatusOK, service.Overview(r.Context()))
+	}
 }

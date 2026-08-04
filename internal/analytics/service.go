@@ -1,10 +1,12 @@
 package analytics
 
 import (
+	"context"
 	"sort"
 	"time"
 
 	"github.com/restaurantautomation/api/internal/automation"
+	"github.com/restaurantautomation/api/internal/orders"
 	"github.com/restaurantautomation/api/internal/printers"
 )
 
@@ -13,37 +15,50 @@ type Metric struct {
 	Available bool    `json:"available"`
 }
 
+type MonetaryMetric struct {
+	Value          float64 `json:"value"`
+	Available      bool    `json:"available"`
+	Currency       string  `json:"currency,omitempty"`
+	IncludedOrders int     `json:"included_orders"`
+	ExcludedOrders int     `json:"excluded_orders"`
+}
+
 type Hour struct {
 	Hour   int `json:"hour"`
 	Orders int `json:"orders"`
 }
 
 type Report struct {
-	GeneratedAt         time.Time `json:"generated_at"`
-	Orders              Metric    `json:"orders"`
-	Sales               Metric    `json:"sales"`
-	AverageTicket       Metric    `json:"average_ticket"`
-	KitchenCompletion   Metric    `json:"kitchen_completion"`
-	DeliveryTime        Metric    `json:"delivery_time"`
-	PrinterAvailability Metric    `json:"printer_availability"`
-	PrinterUtilization  Metric    `json:"printer_utilization"`
-	StaffProductivity   Metric    `json:"staff_productivity"`
-	PeakHours           []Hour    `json:"peak_hours"`
+	GeneratedAt         time.Time      `json:"generated_at"`
+	Orders              Metric         `json:"orders"`
+	Sales               MonetaryMetric `json:"sales"`
+	AverageTicket       MonetaryMetric `json:"average_ticket"`
+	KitchenCompletion   Metric         `json:"kitchen_completion"`
+	DeliveryTime        Metric         `json:"delivery_time"`
+	PrinterAvailability Metric         `json:"printer_availability"`
+	PrinterUtilization  Metric         `json:"printer_utilization"`
+	StaffProductivity   Metric         `json:"staff_productivity"`
+	PeakHours           []Hour         `json:"peak_hours"`
 }
 
 type Service struct {
 	engine   *automation.Engine
 	printers *printers.Manager
+	orders   *orders.Service
 }
 
-func NewService(engine *automation.Engine, printerManager *printers.Manager) *Service {
-	return &Service{engine: engine, printers: printerManager}
+func NewService(engine *automation.Engine, printerManager *printers.Manager, orderServices ...*orders.Service) *Service {
+	service := &Service{engine: engine, printers: printerManager}
+	if len(orderServices) > 0 {
+		service.orders = orderServices[0]
+	}
+	return service
 }
 
-// Overview only reports values that can be derived from the current in-memory
-// event stream and printer manager. Sales, delivery, and staffing become
-// available when persisted order, delivery, and shift data are introduced.
-func (s *Service) Overview() Report {
+// Overview combines runtime automation and printer telemetry with durable order
+// totals. Delivery and staffing metrics remain unavailable until their source
+// records are introduced.
+func (s *Service) Overview(ctx context.Context) Report {
 	events := s.engine.Events()
 	orders := make(map[string]struct{})
 	queued := make(map[string]struct{})
@@ -84,5 +99,44 @@ func (s *Service) Overview() Report {
 		}
 		return peakHours[i].Orders > peakHours[j].Orders
 	})
-	return Report{GeneratedAt: time.Now().UTC(), Orders: Metric{Value: float64(len(orders)), Available: true}, KitchenCompletion: completion, PrinterAvailability: availability, PrinterUtilization: Metric{Value: float64(printed), Available: true}, Sales: Metric{}, AverageTicket: Metric{}, DeliveryTime: Metric{}, StaffProductivity: Metric{}, PeakHours: peakHours}
+	sales, averageTicket := s.sales(ctx)
+	return Report{GeneratedAt: time.Now().UTC(), Orders: Metric{Value: float64(len(orders)), Available: true}, KitchenCompletion: completion, PrinterAvailability: availability, PrinterUtilization: Metric{Value: float64(printed), Available: true}, Sales: sales, AverageTicket: averageTicket, DeliveryTime: Metric{}, StaffProductivity: Metric{}, PeakHours: peakHours}
+}
+
+func (s *Service) sales(ctx context.Context) (MonetaryMetric, MonetaryMetric) {
+	if s.orders == nil {
+		return MonetaryMetric{}, MonetaryMetric{}
+	}
+	allOrders, err := s.orders.List(ctx)
+	if err != nil {
+		return MonetaryMetric{}, MonetaryMetric{}
+	}
+	var sum int64
+	currencies := make(map[string]struct{})
+	included := 0
+	excluded := 0
+	for _, order := range allOrders {
+		if order.Status == "cancelled" {
+			continue
+		}
+		if order.TotalMinor == nil {
+			excluded++
+			continue
+		}
+		included++
+		sum += *order.TotalMinor
+		currencies[order.Currency] = struct{}{}
+	}
+	result := MonetaryMetric{IncludedOrders: included, ExcludedOrders: excluded}
+	if included == 0 || len(currencies) != 1 {
+		return result, result
+	}
+	for currency := range currencies {
+		result.Currency = currency
+	}
+	result.Value = float64(sum) / 100
+	result.Available = true
+	average := result
+	average.Value /= float64(included)
+	return result, average
 }

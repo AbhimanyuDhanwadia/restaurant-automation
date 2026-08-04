@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"sort"
+	"strings"
 	"sync"
 	"time"
 
@@ -16,18 +17,22 @@ type Item struct {
 	Quantity int    `json:"quantity"`
 }
 type Order struct {
-	ID        string    `json:"id"`
-	Channel   string    `json:"channel"`
-	Status    string    `json:"status"`
-	Notes     string    `json:"notes,omitempty"`
-	Items     []Item    `json:"items"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
+	ID         string    `json:"id"`
+	Channel    string    `json:"channel"`
+	Status     string    `json:"status"`
+	Notes      string    `json:"notes,omitempty"`
+	TotalMinor *int64    `json:"total_minor"`
+	Currency   string    `json:"currency,omitempty"`
+	Items      []Item    `json:"items"`
+	CreatedAt  time.Time `json:"created_at"`
+	UpdatedAt  time.Time `json:"updated_at"`
 }
 type CreateInput struct {
-	Channel string `json:"channel"`
-	Notes   string `json:"notes"`
-	Items   []Item `json:"items"`
+	Channel    string `json:"channel"`
+	Notes      string `json:"notes"`
+	TotalMinor *int64 `json:"total_minor"`
+	Currency   string `json:"currency"`
+	Items      []Item `json:"items"`
 }
 
 var ErrNotFound = errors.New("order not found")
@@ -51,9 +56,35 @@ func (s *Service) Create(ctx context.Context, input CreateInput) (Order, error) 
 			return Order{}, ErrInvalidOrder
 		}
 	}
+	if input.TotalMinor != nil && *input.TotalMinor < 0 {
+		return Order{}, ErrInvalidOrder
+	}
+	currency := ""
+	if input.TotalMinor != nil {
+		var valid bool
+		currency, valid = normalizeCurrency(input.Currency)
+		if !valid {
+			return Order{}, ErrInvalidOrder
+		}
+	} else if strings.TrimSpace(input.Currency) != "" {
+		return Order{}, ErrInvalidOrder
+	}
 	now := time.Now().UTC()
-	order := Order{ID: uuid.NewString(), Channel: input.Channel, Status: "received", Notes: input.Notes, Items: input.Items, CreatedAt: now, UpdatedAt: now}
+	order := Order{ID: uuid.NewString(), Channel: input.Channel, Status: "received", Notes: input.Notes, TotalMinor: input.TotalMinor, Currency: currency, Items: input.Items, CreatedAt: now, UpdatedAt: now}
 	return order, s.repository.Create(ctx, order)
+}
+
+func normalizeCurrency(value string) (string, bool) {
+	currency := strings.ToUpper(strings.TrimSpace(value))
+	if len(currency) != 3 {
+		return "", false
+	}
+	for _, letter := range currency {
+		if letter < 'A' || letter > 'Z' {
+			return "", false
+		}
+	}
+	return currency, true
 }
 func (s *Service) List(ctx context.Context) ([]Order, error) { return s.repository.List(ctx) }
 func (s *Service) UpdateStatus(ctx context.Context, id, status string) (Order, error) {
@@ -114,7 +145,11 @@ func (r *PostgresRepository) Create(ctx context.Context, order Order) error {
 		return err
 	}
 	defer tx.Rollback(ctx)
-	if _, err = tx.Exec(ctx, `INSERT INTO orders (id, channel, status, notes, created_at, updated_at) VALUES ($1,$2,$3,$4,$5,$6)`, order.ID, order.Channel, order.Status, order.Notes, order.CreatedAt, order.UpdatedAt); err != nil {
+	var currency any
+	if order.Currency != "" {
+		currency = order.Currency
+	}
+	if _, err = tx.Exec(ctx, `INSERT INTO orders (id, channel, status, notes, total_minor, currency, created_at, updated_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`, order.ID, order.Channel, order.Status, order.Notes, order.TotalMinor, currency, order.CreatedAt, order.UpdatedAt); err != nil {
 		return err
 	}
 	for _, item := range order.Items {
@@ -125,7 +160,7 @@ func (r *PostgresRepository) Create(ctx context.Context, order Order) error {
 	return tx.Commit(ctx)
 }
 func (r *PostgresRepository) List(ctx context.Context) ([]Order, error) {
-	rows, err := r.pool.Query(ctx, `SELECT o.id,o.channel,o.status,o.notes,o.created_at,o.updated_at,i.name,i.quantity FROM orders o JOIN order_items i ON i.order_id=o.id ORDER BY o.created_at DESC,i.id`)
+	rows, err := r.pool.Query(ctx, `SELECT o.id,o.channel,o.status,o.notes,o.total_minor,COALESCE(o.currency,''),o.created_at,o.updated_at,i.name,i.quantity FROM orders o JOIN order_items i ON i.order_id=o.id ORDER BY o.created_at DESC,i.id`)
 	if err != nil {
 		return nil, err
 	}
@@ -136,7 +171,7 @@ func (r *PostgresRepository) List(ctx context.Context) ([]Order, error) {
 		var id string
 		var item Item
 		var order Order
-		if err := rows.Scan(&id, &order.Channel, &order.Status, &order.Notes, &order.CreatedAt, &order.UpdatedAt, &item.Name, &item.Quantity); err != nil {
+		if err := rows.Scan(&id, &order.Channel, &order.Status, &order.Notes, &order.TotalMinor, &order.Currency, &order.CreatedAt, &order.UpdatedAt, &item.Name, &item.Quantity); err != nil {
 			return nil, err
 		}
 		if byID[id] == nil {
