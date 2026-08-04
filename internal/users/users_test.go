@@ -27,7 +27,7 @@ func TestObserveAssignsBootstrapAdministratorAndPreservesAssignments(t *testing.
 	if len(listed) != 2 || listed[0].Email != "manager@example.com" || listed[0].RoleName != "Administrator" || listed[1].RoleName != "Operator" {
 		t.Fatalf("users = %#v", listed)
 	}
-	if _, err := service.UpdateRole(context.Background(), "manager-subject", roles.ManagerID); err != nil {
+	if _, err := service.UpdateRole(context.Background(), "manager-actor", "manager@example.com", "manager-subject", roles.ManagerID); err != nil {
 		t.Fatal(err)
 	}
 	if err := service.Observe(context.Background(), "manager-subject", "manager@example.com"); err != nil {
@@ -47,10 +47,10 @@ func TestUpdateRoleRejectsUnknownRoleAndUnknownUser(t *testing.T) {
 	if err := service.Observe(context.Background(), "operator-subject", "operator@example.com"); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := service.UpdateRole(context.Background(), "operator-subject", "not-a-role"); !errors.Is(err, ErrInvalidRole) {
+	if _, err := service.UpdateRole(context.Background(), "manager-actor", "manager@example.com", "operator-subject", "not-a-role"); !errors.Is(err, ErrInvalidRole) {
 		t.Fatalf("error = %v, want invalid role", err)
 	}
-	if _, err := service.UpdateRole(context.Background(), "missing", roles.ManagerID); !errors.Is(err, ErrNotFound) {
+	if _, err := service.UpdateRole(context.Background(), "manager-actor", "manager@example.com", "missing", roles.ManagerID); !errors.Is(err, ErrNotFound) {
 		t.Fatalf("error = %v, want not found", err)
 	}
 }
@@ -74,7 +74,7 @@ func TestPermissionsFollowAssignedRole(t *testing.T) {
 	if !contains(permissions, "orders.manage") || contains(permissions, "users.manage") {
 		t.Fatalf("operator permissions = %#v", permissions)
 	}
-	if _, err := service.UpdateRole(context.Background(), "operator-subject", roles.AdministratorID); err != nil {
+	if _, err := service.UpdateRole(context.Background(), "manager-actor", "manager@example.com", "operator-subject", roles.AdministratorID); err != nil {
 		t.Fatal(err)
 	}
 	permissions, err = service.Permissions(context.Background(), "operator-subject")
@@ -84,6 +84,10 @@ func TestPermissionsFollowAssignedRole(t *testing.T) {
 	access, err := service.Access(context.Background(), "operator-subject")
 	if err != nil || access.User.RoleName != "Administrator" {
 		t.Fatalf("access = %#v error = %v", access, err)
+	}
+	events, err := service.ListRoleAssignments(context.Background(), 10)
+	if err != nil || len(events) != 1 || events[0].PreviousRoleName != "Operator" || events[0].NewRoleName != "Administrator" {
+		t.Fatalf("events = %#v error = %v", events, err)
 	}
 }
 

@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
@@ -33,11 +34,24 @@ type Access struct {
 	Permissions []string `json:"permissions"`
 }
 
+type RoleAssignmentEvent struct {
+	ID               string    `json:"id"`
+	ActorSubject     string    `json:"actor_subject"`
+	ActorEmail       string    `json:"actor_email"`
+	TargetSubject    string    `json:"target_subject"`
+	PreviousRoleID   string    `json:"previous_role_id"`
+	PreviousRoleName string    `json:"previous_role_name"`
+	NewRoleID        string    `json:"new_role_id"`
+	NewRoleName      string    `json:"new_role_name"`
+	CreatedAt        time.Time `json:"created_at"`
+}
+
 type Repository interface {
 	Observe(context.Context, User) error
 	Get(context.Context, string) (User, error)
 	List(context.Context) ([]User, error)
-	UpdateRole(context.Context, string, string, time.Time) (User, error)
+	UpdateRole(context.Context, RoleAssignmentEvent) (User, error)
+	ListRoleAssignments(context.Context, int) ([]RoleAssignmentEvent, error)
 }
 
 type Service struct {
@@ -78,10 +92,12 @@ func (s *Service) List(ctx context.Context) ([]User, error) {
 	return s.decorateRoles(ctx, result)
 }
 
-func (s *Service) UpdateRole(ctx context.Context, subject, roleID string) (User, error) {
+func (s *Service) UpdateRole(ctx context.Context, actorSubject, actorEmail, subject, roleID string) (User, error) {
+	actorSubject = strings.TrimSpace(actorSubject)
+	actorEmail = strings.ToLower(strings.TrimSpace(actorEmail))
 	subject = strings.TrimSpace(subject)
 	roleID = strings.TrimSpace(roleID)
-	if subject == "" || roleID == "" {
+	if actorSubject == "" || actorEmail == "" || subject == "" || roleID == "" {
 		return User{}, ErrInvalidUser
 	}
 	roleCatalog, err := s.rolesByID(ctx)
@@ -91,12 +107,29 @@ func (s *Service) UpdateRole(ctx context.Context, subject, roleID string) (User,
 	if _, ok := roleCatalog[roleID]; !ok {
 		return User{}, ErrInvalidRole
 	}
-	user, err := s.repository.UpdateRole(ctx, subject, roleID, time.Now().UTC())
+	event := RoleAssignmentEvent{ID: uuid.NewString(), ActorSubject: actorSubject, ActorEmail: actorEmail, TargetSubject: subject, NewRoleID: roleID, CreatedAt: time.Now().UTC()}
+	user, err := s.repository.UpdateRole(ctx, event)
 	if err != nil {
 		return User{}, err
 	}
 	user.RoleName = roleCatalog[roleID].Name
 	return user, nil
+}
+
+func (s *Service) ListRoleAssignments(ctx context.Context, limit int) ([]RoleAssignmentEvent, error) {
+	events, err := s.repository.ListRoleAssignments(ctx, limit)
+	if err != nil {
+		return nil, err
+	}
+	roleCatalog, err := s.rolesByID(ctx)
+	if err != nil {
+		return nil, err
+	}
+	for index := range events {
+		events[index].PreviousRoleName = roleCatalog[events[index].PreviousRoleID].Name
+		events[index].NewRoleName = roleCatalog[events[index].NewRoleID].Name
+	}
+	return events, nil
 }
 
 func (s *Service) Permissions(ctx context.Context, subject string) ([]string, error) {
@@ -151,8 +184,9 @@ func (s *Service) rolesByID(ctx context.Context) (map[string]roles.Role, error) 
 }
 
 type MemoryRepository struct {
-	mu    sync.RWMutex
-	users map[string]User
+	mu                 sync.RWMutex
+	users              map[string]User
+	roleAssignmentLogs []RoleAssignmentEvent
 }
 
 func NewMemoryRepository() *MemoryRepository {
@@ -194,17 +228,32 @@ func (r *MemoryRepository) List(_ context.Context) ([]User, error) {
 	return result, nil
 }
 
-func (r *MemoryRepository) UpdateRole(_ context.Context, subject, roleID string, updatedAt time.Time) (User, error) {
+func (r *MemoryRepository) UpdateRole(_ context.Context, event RoleAssignmentEvent) (User, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	user, ok := r.users[subject]
+	user, ok := r.users[event.TargetSubject]
 	if !ok {
 		return User{}, ErrNotFound
 	}
-	user.RoleID = roleID
-	user.UpdatedAt = updatedAt
-	r.users[subject] = user
+	event.PreviousRoleID = user.RoleID
+	user.RoleID = event.NewRoleID
+	user.UpdatedAt = event.CreatedAt
+	r.users[event.TargetSubject] = user
+	r.roleAssignmentLogs = append(r.roleAssignmentLogs, event)
 	return user, nil
+}
+
+func (r *MemoryRepository) ListRoleAssignments(_ context.Context, limit int) ([]RoleAssignmentEvent, error) {
+	r.mu.RLock()
+	if limit < 1 || limit > len(r.roleAssignmentLogs) {
+		limit = len(r.roleAssignmentLogs)
+	}
+	result := make([]RoleAssignmentEvent, 0, limit)
+	for index := len(r.roleAssignmentLogs) - 1; index >= len(r.roleAssignmentLogs)-limit; index-- {
+		result = append(result, r.roleAssignmentLogs[index])
+	}
+	r.mu.RUnlock()
+	return result, nil
 }
 
 type PostgresRepository struct{ pool *pgxpool.Pool }
@@ -244,13 +293,56 @@ func (r *PostgresRepository) List(ctx context.Context) ([]User, error) {
 	return result, rows.Err()
 }
 
-func (r *PostgresRepository) UpdateRole(ctx context.Context, subject, roleID string, updatedAt time.Time) (User, error) {
+func (r *PostgresRepository) UpdateRole(ctx context.Context, event RoleAssignmentEvent) (User, error) {
+	tx, err := r.pool.Begin(ctx)
+	if err != nil {
+		return User{}, err
+	}
+	defer tx.Rollback(ctx)
 	var user User
-	err := r.pool.QueryRow(ctx, `UPDATE app_users SET role_id=$2,updated_at=$3 WHERE auth_subject=$1 RETURNING auth_subject,email,role_id,created_at,last_seen_at,updated_at`, subject, roleID, updatedAt).Scan(&user.AuthSubject, &user.Email, &user.RoleID, &user.CreatedAt, &user.LastSeenAt, &user.UpdatedAt)
+	err = tx.QueryRow(ctx, `SELECT auth_subject,email,role_id,created_at,last_seen_at,updated_at FROM app_users WHERE auth_subject=$1 FOR UPDATE`, event.TargetSubject).Scan(&user.AuthSubject, &user.Email, &user.RoleID, &user.CreatedAt, &user.LastSeenAt, &user.UpdatedAt)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return User{}, ErrNotFound
 	}
-	return user, err
+	if err != nil {
+		return User{}, err
+	}
+	event.PreviousRoleID = user.RoleID
+	if _, err := tx.Exec(ctx, `UPDATE app_users SET role_id=$2,updated_at=$3 WHERE auth_subject=$1`, event.TargetSubject, event.NewRoleID, event.CreatedAt); err != nil {
+		return User{}, err
+	}
+	if _, err := tx.Exec(ctx, `INSERT INTO access_audit_logs (id,actor_subject,actor_email,target_subject,previous_role_id,new_role_id,created_at) VALUES ($1,$2,$3,$4,$5,$6,$7)`, event.ID, event.ActorSubject, event.ActorEmail, event.TargetSubject, event.PreviousRoleID, event.NewRoleID, event.CreatedAt); err != nil {
+		return User{}, err
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return User{}, err
+	}
+	user.RoleID = event.NewRoleID
+	user.UpdatedAt = event.CreatedAt
+	return user, nil
+}
+
+func (r *PostgresRepository) ListRoleAssignments(ctx context.Context, limit int) ([]RoleAssignmentEvent, error) {
+	if limit < 1 {
+		limit = 100
+	}
+	if limit > 1_000 {
+		limit = 1_000
+	}
+	rows, err := r.pool.Query(ctx, `SELECT id,actor_subject,actor_email,target_subject,previous_role_id,new_role_id,created_at FROM access_audit_logs ORDER BY created_at DESC,id DESC LIMIT $1`, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	result := []RoleAssignmentEvent{}
+	for rows.Next() {
+		var event RoleAssignmentEvent
+		if err := rows.Scan(&event.ID, &event.ActorSubject, &event.ActorEmail, &event.TargetSubject, &event.PreviousRoleID, &event.NewRoleID, &event.CreatedAt); err != nil {
+			return nil, err
+		}
+		result = append(result, event)
+	}
+	return result, rows.Err()
 }
 
 var _ Repository = (*MemoryRepository)(nil)

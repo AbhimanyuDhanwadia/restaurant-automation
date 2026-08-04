@@ -1159,6 +1159,12 @@ h2 {
 .user-role-control { display: grid; gap: 5px; color: #62706b; font-size: 0.7rem; font-weight: 800; text-transform: uppercase; }
 .user-role-control select { min-height: 38px; padding: 0 9px; border: 1px solid #d9d4ca; border-radius: 8px; background: #ffffff; color: #19211d; font: inherit; text-transform: none; }
 .user-role-control small { color: #65716d; font-size: 0.72rem; text-transform: none; }
+.access-audit-list { display: grid; }
+.access-audit-row { display: grid; grid-template-columns: 170px minmax(0, 1fr); gap: 14px; padding: 12px 0; border-top: 1px solid #ece7df; }
+.access-audit-row:first-child { border-top: 0; }
+.access-audit-row time { color: #65716d; font-size: 0.8rem; }
+.access-audit-row > div { display: grid; gap: 5px; min-width: 0; }
+.access-audit-row span { color: #46534e; font-size: 0.85rem; line-height: 1.4; }
 .backup-record-list { display: grid; }
 .backup-record-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; min-height: 64px; border-top: 1px solid #ece7df; }
 .backup-record-row:first-child { border-top: 0; }
@@ -1668,6 +1674,7 @@ h2 {
   .role-permission-grid { grid-template-columns: 1fr; }
   .backups-grid { grid-template-columns: 1fr; }
   .user-directory-row { grid-template-columns: 1fr; gap: 10px; padding: 12px 0; }
+  .access-audit-row { grid-template-columns: 1fr; gap: 5px; }
   .kitchen-performance-order { grid-template-columns: minmax(0, 1fr) auto; gap: 8px; padding: 12px 0; }
   .kitchen-performance-order .status { grid-column: 1; justify-self: start; }
   .engine-pipeline { grid-template-columns: 1fr; }

@@ -74,6 +74,7 @@ func NewRouter(cfg *config.Config, log zerolog.Logger, engine *automation.Engine
 		r.Get("/me", handlers.CurrentUser(dependenciesConfig.Users))
 		r.With(appm.RequirePermission(dependenciesConfig.Users, "automation.view")).Get("/system/health", handlers.SystemHealth(engine, registry, printerManager, checker))
 		r.With(appm.RequirePermission(dependenciesConfig.Users, "audit.view")).Get("/admin/audit-logs", handlers.AuditLogs(engine, dependenciesConfig.AuditLogReader))
+		r.With(appm.RequirePermission(dependenciesConfig.Users, "audit.view")).Get("/admin/access-audit", handlers.ListRoleAssignments(dependenciesConfig.Users))
 		r.With(appm.RequirePermission(dependenciesConfig.Users, "database.view")).Get("/admin/database", handlers.DatabaseStatus(dependenciesConfig.Database))
 		r.With(appm.RequirePermission(dependenciesConfig.Users, "roles.manage")).Get("/admin/roles", handlers.ListRoles(dependenciesConfig.Roles))
 		r.With(appm.RequirePermission(dependenciesConfig.Users, "roles.manage")).Post("/admin/roles", handlers.CreateRole(dependenciesConfig.Roles))

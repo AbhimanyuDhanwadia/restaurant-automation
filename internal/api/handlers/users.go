@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
+	appm "github.com/restaurantautomation/api/internal/api/middleware"
 	"github.com/restaurantautomation/api/internal/users"
 )
 
@@ -39,7 +40,12 @@ func UpdateUserRole(service *users.Service) http.HandlerFunc {
 			http.Error(w, "invalid user role", http.StatusBadRequest)
 			return
 		}
-		user, err := service.UpdateRole(r.Context(), chi.URLParam(r, "subject"), request.RoleID)
+		claims, ok := appm.ClaimsFromContext(r.Context())
+		if !ok {
+			http.Error(w, "authentication required", http.StatusUnauthorized)
+			return
+		}
+		user, err := service.UpdateRole(r.Context(), claims.Subject, claims.Email, chi.URLParam(r, "subject"), request.RoleID)
 		if errors.Is(err, users.ErrNotFound) {
 			http.Error(w, "user not found", http.StatusNotFound)
 			return
@@ -53,5 +59,20 @@ func UpdateUserRole(service *users.Service) http.HandlerFunc {
 			return
 		}
 		writeJSON(w, http.StatusOK, user)
+	}
+}
+
+func ListRoleAssignments(service *users.Service) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if service == nil {
+			http.Error(w, "access audit unavailable", http.StatusServiceUnavailable)
+			return
+		}
+		events, err := service.ListRoleAssignments(r.Context(), 200)
+		if err != nil {
+			http.Error(w, "access audit unavailable", http.StatusInternalServerError)
+			return
+		}
+		writeJSON(w, http.StatusOK, events)
 	}
 }
