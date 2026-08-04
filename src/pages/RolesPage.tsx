@@ -6,7 +6,7 @@ import { Panel, PanelHeading } from "@/components/ui/Panel";
 import { createRole, listRoles } from "@/features/roles/api";
 
 const PERMISSIONS = [
-  { value: "operations.view", label: "Operations" }, { value: "orders.manage", label: "Orders" }, { value: "kitchen.manage", label: "Kitchen" }, { value: "inventory.manage", label: "Inventory" }, { value: "staff.manage", label: "Staff" }, { value: "analytics.view", label: "Analytics" }, { value: "automation.view", label: "Automation" }, { value: "integrations.manage", label: "Integrations" }, { value: "printers.manage", label: "Printers" }, { value: "settings.manage", label: "Settings" }, { value: "audit.view", label: "Audit logs" }, { value: "database.view", label: "Database" }, { value: "roles.manage", label: "Roles" },
+  { value: "operations.view", label: "Operations" }, { value: "orders.manage", label: "Orders" }, { value: "kitchen.manage", label: "Kitchen" }, { value: "inventory.manage", label: "Inventory" }, { value: "staff.manage", label: "Staff" }, { value: "analytics.view", label: "Analytics" }, { value: "automation.view", label: "Automation" }, { value: "integrations.manage", label: "Integrations" }, { value: "printers.manage", label: "Printers" }, { value: "settings.manage", label: "Settings" }, { value: "audit.view", label: "Audit logs" }, { value: "database.view", label: "Database" }, { value: "roles.manage", label: "Roles" }, { value: "users.manage", label: "Users" }, { value: "backups.manage", label: "Backups" },
 ];
 
 export function RolesPage() {

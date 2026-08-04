@@ -61,3 +61,33 @@ func TestObserveRejectsIncompleteIdentity(t *testing.T) {
 		t.Fatalf("error = %v, want invalid user", err)
 	}
 }
+
+func TestPermissionsFollowAssignedRole(t *testing.T) {
+	service := newTestService()
+	if err := service.Observe(context.Background(), "operator-subject", "operator@example.com"); err != nil {
+		t.Fatal(err)
+	}
+	permissions, err := service.Permissions(context.Background(), "operator-subject")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !contains(permissions, "orders.manage") || contains(permissions, "users.manage") {
+		t.Fatalf("operator permissions = %#v", permissions)
+	}
+	if _, err := service.UpdateRole(context.Background(), "operator-subject", roles.AdministratorID); err != nil {
+		t.Fatal(err)
+	}
+	permissions, err = service.Permissions(context.Background(), "operator-subject")
+	if err != nil || !contains(permissions, "users.manage") || !contains(permissions, "backups.manage") {
+		t.Fatalf("administrator permissions = %#v error = %v", permissions, err)
+	}
+}
+
+func contains(values []string, expected string) bool {
+	for _, value := range values {
+		if value == expected {
+			return true
+		}
+	}
+	return false
+}

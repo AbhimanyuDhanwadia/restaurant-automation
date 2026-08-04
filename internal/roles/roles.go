@@ -15,7 +15,7 @@ import (
 )
 
 var AllowedPermissions = map[string]struct{}{
-	"analytics.view": {}, "audit.view": {}, "automation.view": {}, "database.view": {}, "integrations.manage": {}, "inventory.manage": {}, "kitchen.manage": {}, "operations.view": {}, "orders.manage": {}, "printers.manage": {}, "roles.manage": {}, "settings.manage": {}, "staff.manage": {},
+	"analytics.view": {}, "audit.view": {}, "automation.view": {}, "backups.manage": {}, "database.view": {}, "integrations.manage": {}, "inventory.manage": {}, "kitchen.manage": {}, "operations.view": {}, "orders.manage": {}, "printers.manage": {}, "roles.manage": {}, "settings.manage": {}, "staff.manage": {}, "users.manage": {},
 }
 
 const (
@@ -93,7 +93,7 @@ func defaultRoles() []Role {
 	return []Role{
 		{ID: OperatorID, Name: "Operator", Description: "Runs day-to-day restaurant operations.", Permissions: []string{"inventory.manage", "kitchen.manage", "operations.view", "orders.manage"}, System: true, CreatedAt: now, UpdatedAt: now},
 		{ID: ManagerID, Name: "Manager", Description: "Oversees operations, staffing, and analytics.", Permissions: []string{"analytics.view", "inventory.manage", "kitchen.manage", "operations.view", "orders.manage", "settings.manage", "staff.manage"}, System: true, CreatedAt: now, UpdatedAt: now},
-		{ID: AdministratorID, Name: "Administrator", Description: "Configures automation and administration services.", Permissions: []string{"analytics.view", "audit.view", "automation.view", "database.view", "integrations.manage", "inventory.manage", "kitchen.manage", "operations.view", "orders.manage", "printers.manage", "roles.manage", "settings.manage", "staff.manage"}, System: true, CreatedAt: now, UpdatedAt: now},
+		{ID: AdministratorID, Name: "Administrator", Description: "Configures automation and administration services.", Permissions: []string{"analytics.view", "audit.view", "automation.view", "backups.manage", "database.view", "integrations.manage", "inventory.manage", "kitchen.manage", "operations.view", "orders.manage", "printers.manage", "roles.manage", "settings.manage", "staff.manage", "users.manage"}, System: true, CreatedAt: now, UpdatedAt: now},
 	}
 }
 

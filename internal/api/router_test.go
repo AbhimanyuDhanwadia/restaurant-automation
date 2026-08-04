@@ -7,7 +7,9 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/restaurantautomation/api/internal/alerts"
 	"github.com/restaurantautomation/api/internal/analytics"
 	"github.com/restaurantautomation/api/internal/api"
@@ -18,9 +20,11 @@ import (
 	"github.com/restaurantautomation/api/internal/inventory"
 	"github.com/restaurantautomation/api/internal/orders"
 	"github.com/restaurantautomation/api/internal/printers"
+	"github.com/restaurantautomation/api/internal/roles"
 	"github.com/restaurantautomation/api/internal/settings"
 	"github.com/restaurantautomation/api/internal/staff"
 	"github.com/restaurantautomation/api/internal/tables"
+	"github.com/restaurantautomation/api/internal/users"
 	"github.com/rs/zerolog"
 )
 
@@ -334,4 +338,41 @@ func TestSettingsEndpoints(t *testing.T) {
 	if recorder.Code != http.StatusOK {
 		t.Fatalf("get status = %d, want %d", recorder.Code, http.StatusOK)
 	}
+}
+
+func TestUsersRouteRequiresAssignedPermission(t *testing.T) {
+	cfg := &config.Config{Server: config.ServerConfig{CORSOrigins: []string{"*"}}, Auth: config.AuthConfig{Required: true, SupabaseJWTSecret: "secret", AdminEmails: []string{"manager@example.com"}}}
+	engine := automation.NewEngine(1, 10, automation.RetryPolicy{MaxAttempts: 1})
+	engine.Start(context.Background())
+	defer engine.Close()
+	printerManager := printers.NewManager(printers.ESCPosFormatter{}, 1)
+	roleService := roles.NewService(roles.NewMemoryRepository())
+	userService := users.NewService(users.NewMemoryRepository(), roleService, cfg.Auth.AdminEmails)
+	router := api.NewRouter(cfg, zerolog.Nop(), engine, integrations.NewRegistry(), printerManager, analytics.NewService(engine, printerManager), intelligence.NewService(engine, printerManager), orders.NewService(orders.NewMemoryRepository()), tables.NewService(tables.NewMemoryRepository()), inventory.NewService(inventory.NewMemoryRepository()), staff.NewService(staff.NewMemoryRepository()), alerts.NewService(alerts.NewMemoryRepository()), settings.NewService(settings.NewMemoryRepository()), api.Dependencies{Roles: roleService, Users: userService})
+
+	operatorRequest := httptest.NewRequest(http.MethodGet, "/api/v1/admin/users", nil)
+	operatorRequest.Header.Set("Authorization", "Bearer "+signedAccessToken(t, "operator", "operator@example.com"))
+	operatorResponse := httptest.NewRecorder()
+	router.ServeHTTP(operatorResponse, operatorRequest)
+	if operatorResponse.Code != http.StatusForbidden {
+		t.Fatalf("operator status = %d, want %d", operatorResponse.Code, http.StatusForbidden)
+	}
+
+	adminRequest := httptest.NewRequest(http.MethodGet, "/api/v1/admin/users", nil)
+	adminRequest.Header.Set("Authorization", "Bearer "+signedAccessToken(t, "manager", "manager@example.com"))
+	adminResponse := httptest.NewRecorder()
+	router.ServeHTTP(adminResponse, adminRequest)
+	if adminResponse.Code != http.StatusOK {
+		t.Fatalf("administrator status = %d, want %d body=%s", adminResponse.Code, http.StatusOK, adminResponse.Body.String())
+	}
+}
+
+func signedAccessToken(t *testing.T, subject, email string) string {
+	t.Helper()
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{"sub": subject, "email": email, "exp": time.Now().Add(time.Minute).Unix()})
+	signed, err := token.SignedString([]byte("secret"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	return signed
 }

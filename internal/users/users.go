@@ -30,6 +30,7 @@ type User struct {
 
 type Repository interface {
 	Observe(context.Context, User) error
+	Get(context.Context, string) (User, error)
 	List(context.Context) ([]User, error)
 	UpdateRole(context.Context, string, string, time.Time) (User, error)
 }
@@ -93,6 +94,22 @@ func (s *Service) UpdateRole(ctx context.Context, subject, roleID string) (User,
 	return user, nil
 }
 
+func (s *Service) Permissions(ctx context.Context, subject string) ([]string, error) {
+	user, err := s.repository.Get(ctx, strings.TrimSpace(subject))
+	if err != nil {
+		return nil, err
+	}
+	roleCatalog, err := s.rolesByID(ctx)
+	if err != nil {
+		return nil, err
+	}
+	role, ok := roleCatalog[user.RoleID]
+	if !ok {
+		return nil, ErrInvalidRole
+	}
+	return append([]string(nil), role.Permissions...), nil
+}
+
 func (s *Service) decorateRoles(ctx context.Context, users []User) ([]User, error) {
 	roleCatalog, err := s.rolesByID(ctx)
 	if err != nil {
@@ -142,6 +159,16 @@ func (r *MemoryRepository) Observe(_ context.Context, user User) error {
 	return nil
 }
 
+func (r *MemoryRepository) Get(_ context.Context, subject string) (User, error) {
+	r.mu.RLock()
+	user, ok := r.users[subject]
+	r.mu.RUnlock()
+	if !ok {
+		return User{}, ErrNotFound
+	}
+	return user, nil
+}
+
 func (r *MemoryRepository) List(_ context.Context) ([]User, error) {
 	r.mu.RLock()
 	result := make([]User, 0, len(r.users))
@@ -175,6 +202,15 @@ func NewPostgresRepository(pool *pgxpool.Pool) *PostgresRepository {
 func (r *PostgresRepository) Observe(ctx context.Context, user User) error {
 	_, err := r.pool.Exec(ctx, `INSERT INTO app_users (auth_subject,email,role_id,created_at,last_seen_at,updated_at) VALUES ($1,$2,$3,$4,$5,$6) ON CONFLICT (auth_subject) DO UPDATE SET email=EXCLUDED.email,last_seen_at=EXCLUDED.last_seen_at,updated_at=EXCLUDED.updated_at`, user.AuthSubject, user.Email, user.RoleID, user.CreatedAt, user.LastSeenAt, user.UpdatedAt)
 	return err
+}
+
+func (r *PostgresRepository) Get(ctx context.Context, subject string) (User, error) {
+	var user User
+	err := r.pool.QueryRow(ctx, `SELECT auth_subject,email,role_id,created_at,last_seen_at,updated_at FROM app_users WHERE auth_subject=$1`, subject).Scan(&user.AuthSubject, &user.Email, &user.RoleID, &user.CreatedAt, &user.LastSeenAt, &user.UpdatedAt)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return User{}, ErrNotFound
+	}
+	return user, err
 }
 
 func (r *PostgresRepository) List(ctx context.Context) ([]User, error) {

@@ -91,25 +91,39 @@ func TrackUser(observer UserObserver) func(http.Handler) http.Handler {
 	}
 }
 
-func RequireBootstrapAdmin(adminEmails []string) func(http.Handler) http.Handler {
-	allowed := make(map[string]struct{}, len(adminEmails))
-	for _, email := range adminEmails {
-		if normalized := strings.ToLower(strings.TrimSpace(email)); normalized != "" {
-			allowed[normalized] = struct{}{}
-		}
-	}
+// PermissionChecker resolves the locally assigned permissions for an
+// authenticated subject. It is defined at this boundary to avoid coupling the
+// HTTP layer to a particular identity provider.
+type PermissionChecker interface {
+	Permissions(context.Context, string) ([]string, error)
+}
+
+func RequirePermission(checker PermissionChecker, required string) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			claims, ok := ClaimsFromContext(r.Context())
 			if !ok {
-				http.Error(w, "authentication required", http.StatusUnauthorized)
+				// AUTH_REQUIRED=false is an explicit local-development mode.
+				next.ServeHTTP(w, r)
 				return
 			}
-			if _, ok := allowed[strings.ToLower(strings.TrimSpace(claims.Email))]; !ok {
-				http.Error(w, "administrator access required", http.StatusForbidden)
+			if checker == nil {
+				http.Error(w, "authorization unavailable", http.StatusServiceUnavailable)
 				return
 			}
-			next.ServeHTTP(w, r)
+			permissions, err := checker.Permissions(r.Context(), claims.Subject)
+			if err != nil {
+				http.Error(w, "authorization unavailable", http.StatusServiceUnavailable)
+				return
+			}
+			for _, permission := range permissions {
+				if permission == required {
+					next.ServeHTTP(w, r)
+					return
+				}
+			}
+			http.Error(w, "permission required", http.StatusForbidden)
+			return
 		})
 	}
 }
