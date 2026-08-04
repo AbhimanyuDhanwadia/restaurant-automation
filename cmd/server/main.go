@@ -30,6 +30,7 @@ import (
 	"github.com/restaurantautomation/api/internal/settings"
 	"github.com/restaurantautomation/api/internal/staff"
 	"github.com/restaurantautomation/api/internal/tables"
+	"github.com/restaurantautomation/api/internal/users"
 )
 
 func main() {
@@ -58,6 +59,7 @@ func main() {
 	printQueueRepository := printqueue.Repository(printqueue.NewMemoryRepository())
 	roleRepository := roles.Repository(roles.NewMemoryRepository())
 	backupRepository := backups.Repository(backups.NewMemoryRepository())
+	userRepository := users.Repository(users.NewMemoryRepository())
 	if cfg.Database.DSN != "" {
 		startupCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 		pool, err := database.Open(startupCtx, cfg.Database)
@@ -79,6 +81,7 @@ func main() {
 		printQueueRepository = printqueue.NewPostgresRepository(pool)
 		roleRepository = roles.NewPostgresRepository(pool)
 		backupRepository = backups.NewPostgresRepository(pool)
+		userRepository = users.NewPostgresRepository(pool)
 		eventStore = database.NewEventStore(pool)
 		databaseInspector = database.NewInspector(pool)
 		eventPersister = database.NewEventPersister(eventStore, log)
@@ -129,10 +132,11 @@ func main() {
 	printQueueService := printqueue.NewService(printQueueRepository)
 	roleService := roles.NewService(roleRepository)
 	backupService := backups.NewService(backupRepository)
+	userService := users.NewService(userRepository, roleService, cfg.Auth.AdminEmails)
 	printerManager.SetObserver(printQueueService)
 	intelligenceService.Start(context.Background())
 	defer intelligenceService.Close()
-	router := api.NewRouter(cfg, log, engine, providers, printerManager, analyticsService, intelligenceService, orderService, tableService, inventoryService, staffService, alertService, settingsService, api.Dependencies{Readiness: databasePool, AuditLogReader: eventStore, Database: databaseInspector, PrintQueue: printQueueService, Roles: roleService, Backups: backupService})
+	router := api.NewRouter(cfg, log, engine, providers, printerManager, analyticsService, intelligenceService, orderService, tableService, inventoryService, staffService, alertService, settingsService, api.Dependencies{Readiness: databasePool, AuditLogReader: eventStore, Database: databaseInspector, PrintQueue: printQueueService, Roles: roleService, Backups: backupService, Users: userService})
 
 	// 5. Setup HTTP Server
 	server := &http.Server{

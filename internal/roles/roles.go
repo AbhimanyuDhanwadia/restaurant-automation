@@ -18,6 +18,12 @@ var AllowedPermissions = map[string]struct{}{
 	"analytics.view": {}, "audit.view": {}, "automation.view": {}, "database.view": {}, "integrations.manage": {}, "inventory.manage": {}, "kitchen.manage": {}, "operations.view": {}, "orders.manage": {}, "printers.manage": {}, "roles.manage": {}, "settings.manage": {}, "staff.manage": {},
 }
 
+const (
+	OperatorID      = "00000000-0000-0000-0000-000000000001"
+	ManagerID       = "00000000-0000-0000-0000-000000000002"
+	AdministratorID = "00000000-0000-0000-0000-000000000003"
+)
+
 type Role struct {
 	ID          string    `json:"id"`
 	Name        string    `json:"name"`
@@ -85,9 +91,9 @@ func normalizePermissions(values []string) ([]string, bool) {
 func defaultRoles() []Role {
 	now := time.Now().UTC()
 	return []Role{
-		{ID: "00000000-0000-0000-0000-000000000001", Name: "Operator", Description: "Runs day-to-day restaurant operations.", Permissions: []string{"inventory.manage", "kitchen.manage", "operations.view", "orders.manage"}, System: true, CreatedAt: now, UpdatedAt: now},
-		{ID: "00000000-0000-0000-0000-000000000002", Name: "Manager", Description: "Oversees operations, staffing, and analytics.", Permissions: []string{"analytics.view", "inventory.manage", "kitchen.manage", "operations.view", "orders.manage", "settings.manage", "staff.manage"}, System: true, CreatedAt: now, UpdatedAt: now},
-		{ID: "00000000-0000-0000-0000-000000000003", Name: "Administrator", Description: "Configures automation and administration services.", Permissions: []string{"analytics.view", "audit.view", "automation.view", "database.view", "integrations.manage", "inventory.manage", "kitchen.manage", "operations.view", "orders.manage", "printers.manage", "roles.manage", "settings.manage", "staff.manage"}, System: true, CreatedAt: now, UpdatedAt: now},
+		{ID: OperatorID, Name: "Operator", Description: "Runs day-to-day restaurant operations.", Permissions: []string{"inventory.manage", "kitchen.manage", "operations.view", "orders.manage"}, System: true, CreatedAt: now, UpdatedAt: now},
+		{ID: ManagerID, Name: "Manager", Description: "Oversees operations, staffing, and analytics.", Permissions: []string{"analytics.view", "inventory.manage", "kitchen.manage", "operations.view", "orders.manage", "settings.manage", "staff.manage"}, System: true, CreatedAt: now, UpdatedAt: now},
+		{ID: AdministratorID, Name: "Administrator", Description: "Configures automation and administration services.", Permissions: []string{"analytics.view", "audit.view", "automation.view", "database.view", "integrations.manage", "inventory.manage", "kitchen.manage", "operations.view", "orders.manage", "printers.manage", "roles.manage", "settings.manage", "staff.manage"}, System: true, CreatedAt: now, UpdatedAt: now},
 	}
 }
 

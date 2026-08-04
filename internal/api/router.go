@@ -23,6 +23,7 @@ import (
 	"github.com/restaurantautomation/api/internal/settings"
 	"github.com/restaurantautomation/api/internal/staff"
 	"github.com/restaurantautomation/api/internal/tables"
+	"github.com/restaurantautomation/api/internal/users"
 )
 
 // NewRouter constructs the Chi router with the standard middleware stack
@@ -34,6 +35,7 @@ type Dependencies struct {
 	PrintQueue     *printqueue.Service
 	Roles          *roles.Service
 	Backups        *backups.Service
+	Users          *users.Service
 }
 
 func NewRouter(cfg *config.Config, log zerolog.Logger, engine *automation.Engine, registry *integrations.Registry, printerManager *printers.Manager, analyticsService *analytics.Service, intelligenceService *intelligence.Service, orderService *orders.Service, tableService *tables.Service, inventoryService *inventory.Service, staffService *staff.Service, alertService *alerts.Service, settingsService *settings.Service, dependencies ...Dependencies) *chi.Mux {
@@ -68,6 +70,7 @@ func NewRouter(cfg *config.Config, log zerolog.Logger, engine *automation.Engine
 	// 4. API Routes (Will be authenticated later)
 	r.Route("/api/v1", func(r chi.Router) {
 		r.Use(appm.Auth(cfg.Auth))
+		r.Use(appm.TrackUser(dependenciesConfig.Users))
 		r.Get("/me", handlers.CurrentUser())
 		r.Get("/system/health", handlers.SystemHealth(engine, registry, printerManager, checker))
 		r.Get("/admin/audit-logs", handlers.AuditLogs(engine, dependenciesConfig.AuditLogReader))
@@ -76,6 +79,11 @@ func NewRouter(cfg *config.Config, log zerolog.Logger, engine *automation.Engine
 		r.Post("/admin/roles", handlers.CreateRole(dependenciesConfig.Roles))
 		r.Get("/admin/backups", handlers.ListBackups(dependenciesConfig.Backups))
 		r.Post("/admin/backups", handlers.RecordBackup(dependenciesConfig.Backups))
+		r.Route("/admin/users", func(r chi.Router) {
+			r.Use(appm.RequireBootstrapAdmin(cfg.Auth.AdminEmails))
+			r.Get("/", handlers.ListUsers(dependenciesConfig.Users))
+			r.Patch("/{subject}/role", handlers.UpdateUserRole(dependenciesConfig.Users))
+		})
 		r.Get("/insights", handlers.Insights(intelligenceService))
 		r.Get("/analytics/overview", handlers.AnalyticsOverview(analyticsService))
 		r.Get("/integrations", handlers.Integrations(registry))

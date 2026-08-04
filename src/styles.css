@@ -1149,7 +1149,16 @@ h2 {
 .role-permission-grid label { display: flex; align-items: center; gap: 7px; min-width: 0; color: #46534e; font-size: 0.82rem; }
 .role-permission-grid input { width: 16px; height: 16px; accent-color: #b8472b; }
 .backups-workspace { display: grid; gap: 18px; }
+.users-workspace { display: grid; gap: 18px; }
 .backups-grid { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(280px, 0.8fr); gap: 18px; }
+.user-directory-list { display: grid; }
+.user-directory-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(180px, 0.35fr); align-items: center; gap: 16px; min-height: 82px; padding: 12px 0; border-top: 1px solid #ece7df; }
+.user-directory-row:first-child { border-top: 0; }
+.user-directory-row > div { display: grid; gap: 5px; min-width: 0; }
+.user-directory-row > div span, .user-directory-row > div small { overflow: hidden; color: #65716d; font-size: 0.8rem; text-overflow: ellipsis; white-space: nowrap; }
+.user-role-control { display: grid; gap: 5px; color: #62706b; font-size: 0.7rem; font-weight: 800; text-transform: uppercase; }
+.user-role-control select { min-height: 38px; padding: 0 9px; border: 1px solid #d9d4ca; border-radius: 8px; background: #ffffff; color: #19211d; font: inherit; text-transform: none; }
+.user-role-control small { color: #65716d; font-size: 0.72rem; text-transform: none; }
 .backup-record-list { display: grid; }
 .backup-record-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; min-height: 64px; border-top: 1px solid #ece7df; }
 .backup-record-row:first-child { border-top: 0; }
@@ -1598,6 +1607,7 @@ h2 {
   .delivery-performance-grid { grid-template-columns: 1fr; }
   .roles-grid { grid-template-columns: 1fr; }
   .backups-grid { grid-template-columns: 1fr; }
+  .user-directory-row { grid-template-columns: minmax(0, 1fr) minmax(180px, 0.35fr); }
   .order-engine-grid { grid-template-columns: 1fr; }
   .engine-pipeline { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .event-log-controls { align-items: stretch; flex-direction: column; }
@@ -1657,6 +1667,7 @@ h2 {
   .roles-grid { grid-template-columns: 1fr; }
   .role-permission-grid { grid-template-columns: 1fr; }
   .backups-grid { grid-template-columns: 1fr; }
+  .user-directory-row { grid-template-columns: 1fr; gap: 10px; padding: 12px 0; }
   .kitchen-performance-order { grid-template-columns: minmax(0, 1fr) auto; gap: 8px; padding: 12px 0; }
   .kitchen-performance-order .status { grid-column: 1; justify-self: start; }
   .engine-pipeline { grid-template-columns: 1fr; }

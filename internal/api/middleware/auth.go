@@ -64,6 +64,55 @@ func ClaimsFromContext(ctx context.Context) (Claims, bool) {
 	claims, ok := ctx.Value(claimsKey).(Claims)
 	return claims, ok
 }
+
+// UserObserver records an already-authenticated identity in the local
+// application directory. It deliberately has no access to Supabase Admin APIs.
+type UserObserver interface {
+	Observe(context.Context, string, string) error
+}
+
+func TrackUser(observer UserObserver) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		if observer == nil {
+			return next
+		}
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			claims, ok := ClaimsFromContext(r.Context())
+			if !ok {
+				next.ServeHTTP(w, r)
+				return
+			}
+			if err := observer.Observe(r.Context(), claims.Subject, claims.Email); err != nil {
+				http.Error(w, "user directory unavailable", http.StatusServiceUnavailable)
+				return
+			}
+			next.ServeHTTP(w, r)
+		})
+	}
+}
+
+func RequireBootstrapAdmin(adminEmails []string) func(http.Handler) http.Handler {
+	allowed := make(map[string]struct{}, len(adminEmails))
+	for _, email := range adminEmails {
+		if normalized := strings.ToLower(strings.TrimSpace(email)); normalized != "" {
+			allowed[normalized] = struct{}{}
+		}
+	}
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			claims, ok := ClaimsFromContext(r.Context())
+			if !ok {
+				http.Error(w, "authentication required", http.StatusUnauthorized)
+				return
+			}
+			if _, ok := allowed[strings.ToLower(strings.TrimSpace(claims.Email))]; !ok {
+				http.Error(w, "administrator access required", http.StatusForbidden)
+				return
+			}
+			next.ServeHTTP(w, r)
+		})
+	}
+}
 func stringClaim(claims jwt.MapClaims, key string) string {
 	value, _ := claims[key].(string)
 	return value

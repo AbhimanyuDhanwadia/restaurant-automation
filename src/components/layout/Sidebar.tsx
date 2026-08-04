@@ -73,7 +73,7 @@ const NAV_GROUPS: Array<{
     label: "Administration",
     items: [
       { to: "/settings", label: "Settings", icon: Settings },
-      { to: "/admin/users", label: "Users", icon: UsersRound, disabled: true },
+      { to: "/admin/users", label: "Users", icon: UsersRound },
       { to: "/admin/roles", label: "Roles", icon: ShieldCheck },
       { to: "/admin/database", label: "Database", icon: Database },
       { to: "/admin/audit-logs", label: "Audit Logs", icon: FileClock },

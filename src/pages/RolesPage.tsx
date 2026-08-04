@@ -32,7 +32,7 @@ export function RolesPage() {
 
   return <section className="roles-workspace">
     <div className="automation-toolbar">
-      <div><p className="eyebrow">Administration</p><h2>Roles</h2><p className="automation-subtitle">Durable permission templates for future authenticated user assignments.</p></div>
+      <div><p className="eyebrow">Administration</p><h2>Roles</h2><p className="automation-subtitle">Durable permission templates for authenticated user assignments.</p></div>
       <button type="button" className="icon-button" onClick={() => rolesQuery.refetch()} disabled={rolesQuery.isFetching} title="Refresh roles" aria-label="Refresh roles"><RefreshCw size={18} aria-hidden="true" className={rolesQuery.isFetching ? "spin" : undefined} /></button>
     </div>
 
@@ -45,6 +45,6 @@ export function RolesPage() {
       <Panel label="Create role"><PanelHeading eyebrow="New template" title="Create custom role" action={<Plus size={20} aria-hidden="true" />} /><form className="role-create-form" onSubmit={(event) => { event.preventDefault(); createMutation.mutate({ name: name.trim(), description: description.trim(), permissions }); }}><label><span>Role name</span><input value={name} onChange={(event) => setName(event.target.value)} required maxLength={80} /></label><label><span>Description</span><input value={description} onChange={(event) => setDescription(event.target.value)} /></label><fieldset><legend>Permissions</legend><div className="role-permission-grid">{PERMISSIONS.map((permission) => <label key={permission.value}><input type="checkbox" checked={permissions.includes(permission.value)} onChange={() => togglePermission(permission.value)} /><span>{permission.label}</span></label>)}</div></fieldset><button type="submit" className="primary-button" disabled={createMutation.isPending || permissions.length === 0}>{createMutation.isPending ? "Creating..." : "Create role"}</button></form></Panel>
     </div>
 
-    <Panel label="Role assignment boundary"><PanelHeading eyebrow="Access boundary" title="User assignments" action={<KeyRound size={20} aria-hidden="true" />} /><p className="analytics-summary-copy">Roles are durable permission templates only. Assigning them to Supabase users requires a server-side user-administration integration and is intentionally not exposed from this browser workspace.</p></Panel>
+    <Panel label="Role assignment boundary"><PanelHeading eyebrow="Access boundary" title="User assignments" action={<KeyRound size={20} aria-hidden="true" />} /><p className="analytics-summary-copy">Roles are durable permission templates. The Users workspace assigns them to identities already observed from validated Supabase JWTs; it does not provision or administer Supabase Auth users.</p></Panel>
   </section>;
 }

@@ -72,6 +72,10 @@ type AuthConfig struct {
 	Required bool `mapstructure:"AUTH_REQUIRED"`
 	// Issuer optionally validates the iss claim on Supabase access tokens.
 	Issuer string `mapstructure:"SUPABASE_JWT_ISSUER"`
+	// AdminEmails is a comma-separated bootstrap allow-list for user administration.
+	// Application roles are assigned in the database; this list protects the initial
+	// administrative control plane before role-based request enforcement exists.
+	AdminEmails []string `mapstructure:"ADMIN_EMAILS"`
 }
 
 // LogConfig controls the zerolog output format.
@@ -120,6 +124,9 @@ func Load() (*Config, error) {
 	// Parse CORS_ORIGINS from comma-separated string if needed.
 	if raw := v.GetString("CORS_ORIGINS"); raw != "" {
 		cfg.Server.CORSOrigins = splitTrimmed(raw, ",")
+	}
+	if raw := v.GetString("ADMIN_EMAILS"); raw != "" {
+		cfg.Auth.AdminEmails = splitTrimmed(raw, ",")
 	}
 	if cfg.Auth.Required && strings.TrimSpace(cfg.Auth.SupabaseJWTSecret) == "" {
 		return nil, fmt.Errorf("config: SUPABASE_JWT_SECRET is required when AUTH_REQUIRED=true")
