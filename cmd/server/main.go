@@ -25,6 +25,7 @@ import (
 	"github.com/restaurantautomation/api/internal/orders"
 	"github.com/restaurantautomation/api/internal/printers"
 	"github.com/restaurantautomation/api/internal/printqueue"
+	"github.com/restaurantautomation/api/internal/roles"
 	"github.com/restaurantautomation/api/internal/settings"
 	"github.com/restaurantautomation/api/internal/staff"
 	"github.com/restaurantautomation/api/internal/tables"
@@ -54,6 +55,7 @@ func main() {
 	alertRepository := alerts.Repository(alerts.NewMemoryRepository())
 	settingsRepository := settings.Repository(settings.NewMemoryRepository())
 	printQueueRepository := printqueue.Repository(printqueue.NewMemoryRepository())
+	roleRepository := roles.Repository(roles.NewMemoryRepository())
 	if cfg.Database.DSN != "" {
 		startupCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 		pool, err := database.Open(startupCtx, cfg.Database)
@@ -73,6 +75,7 @@ func main() {
 		alertRepository = alerts.NewPostgresRepository(pool)
 		settingsRepository = settings.NewPostgresRepository(pool)
 		printQueueRepository = printqueue.NewPostgresRepository(pool)
+		roleRepository = roles.NewPostgresRepository(pool)
 		eventStore = database.NewEventStore(pool)
 		databaseInspector = database.NewInspector(pool)
 		eventPersister = database.NewEventPersister(eventStore, log)
@@ -121,10 +124,11 @@ func main() {
 	alertService := alerts.NewService(alertRepository)
 	settingsService := settings.NewService(settingsRepository)
 	printQueueService := printqueue.NewService(printQueueRepository)
+	roleService := roles.NewService(roleRepository)
 	printerManager.SetObserver(printQueueService)
 	intelligenceService.Start(context.Background())
 	defer intelligenceService.Close()
-	router := api.NewRouter(cfg, log, engine, providers, printerManager, analyticsService, intelligenceService, orderService, tableService, inventoryService, staffService, alertService, settingsService, api.Dependencies{Readiness: databasePool, AuditLogReader: eventStore, Database: databaseInspector, PrintQueue: printQueueService})
+	router := api.NewRouter(cfg, log, engine, providers, printerManager, analyticsService, intelligenceService, orderService, tableService, inventoryService, staffService, alertService, settingsService, api.Dependencies{Readiness: databasePool, AuditLogReader: eventStore, Database: databaseInspector, PrintQueue: printQueueService, Roles: roleService})
 
 	// 5. Setup HTTP Server
 	server := &http.Server{
