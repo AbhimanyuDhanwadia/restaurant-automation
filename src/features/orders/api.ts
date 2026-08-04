@@ -14,6 +14,8 @@ export interface Order {
   notes?: string;
   total_minor: number | null;
   currency?: string;
+  delivery_partner?: string;
+  delivered_at: string | null;
   items: OrderItem[];
   created_at: string;
   updated_at: string;
@@ -24,6 +26,7 @@ export interface CreateOrderInput {
   notes?: string;
   total_minor?: number;
   currency?: string;
+  delivery_partner?: string;
   items: OrderItem[];
 }
 

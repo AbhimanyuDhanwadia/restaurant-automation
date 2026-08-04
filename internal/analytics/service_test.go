@@ -72,3 +72,20 @@ func TestOverviewDoesNotCombineCurrencies(t *testing.T) {
 		t.Fatalf("sales = %+v average = %+v", report.Sales, report.AverageTicket)
 	}
 }
+
+func TestOverviewAggregatesDeliveryTime(t *testing.T) {
+	engine := automation.NewEngine(1, 10, automation.RetryPolicy{MaxAttempts: 1})
+	printerManager := printers.NewManager(printers.ESCPosFormatter{}, 1)
+	orderService := orders.NewService(orders.NewMemoryRepository())
+	order, err := orderService.Create(context.Background(), orders.CreateInput{Channel: "swiggy", DeliveryPartner: "Swiggy", Items: []orders.Item{{Name: "Paneer", Quantity: 1}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := orderService.UpdateStatus(context.Background(), order.ID, "delivered"); err != nil {
+		t.Fatal(err)
+	}
+	report := NewService(engine, printerManager, orderService).Overview(context.Background())
+	if !report.DeliveryTime.Available || report.DeliveryTime.DeliveredOrders != 1 || report.DeliveryTime.ActiveOrders != 0 {
+		t.Fatalf("delivery = %+v", report.DeliveryTime)
+	}
+}

@@ -55,6 +55,7 @@ const OrderEnginePage = lazyRouteComponent(() => import("@/pages/OrderEnginePage
 const KitchenPerformancePage = lazyRouteComponent(() => import("@/pages/KitchenPerformancePage"), "KitchenPerformancePage");
 const InventoryAnalyticsPage = lazyRouteComponent(() => import("@/pages/InventoryAnalyticsPage"), "InventoryAnalyticsPage");
 const SalesPage = lazyRouteComponent(() => import("@/pages/SalesPage"), "SalesPage");
+const DeliveryPerformancePage = lazyRouteComponent(() => import("@/pages/DeliveryPerformancePage"), "DeliveryPerformancePage");
 
 // ---------------------------------------------------------------------------
 // Root route — wraps everything in the AuthGuard.
@@ -214,6 +215,12 @@ const salesRoute = createRoute({
   component: SalesPage,
 });
 
+const deliveryPerformanceRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/analytics/delivery",
+  component: DeliveryPerformancePage,
+});
+
 // ---------------------------------------------------------------------------
 // Router instance
 // ---------------------------------------------------------------------------
@@ -242,6 +249,7 @@ const routeTree = rootRoute.addChildren([
   kitchenPerformanceRoute,
   inventoryAnalyticsRoute,
   salesRoute,
+  deliveryPerformanceRoute,
 ]);
 
 const basepath = import.meta.env.BASE_URL.replace(/\/$/, "") || "/";

@@ -1118,6 +1118,17 @@ h2 {
 .inventory-risk-row > strong { color: #a43b21; font-size: 0.82rem; white-space: nowrap; }
 .sales-workspace { display: grid; gap: 18px; }
 .sales-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+.delivery-performance-workspace { display: grid; gap: 18px; }
+.delivery-performance-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+.delivery-provider-list, .delivery-order-list { display: grid; }
+.delivery-provider-list > div { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: 14px; min-height: 56px; border-top: 1px solid #ece7df; }
+.delivery-provider-list > div:first-child, .delivery-order-row:first-child { border-top: 0; }
+.delivery-provider-list span, .delivery-provider-list small, .delivery-order-row span, .delivery-order-row time { color: #65716d; font-size: 0.8rem; }
+.delivery-provider-list small { text-align: right; }
+.delivery-order-row { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: 14px; min-height: 62px; border-top: 1px solid #ece7df; }
+.delivery-order-row > div { display: grid; gap: 5px; min-width: 0; }
+.delivery-order-row span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.delivery-order-row time { white-space: nowrap; }
 
 .settings-grid {
   display: grid;
@@ -1550,6 +1561,7 @@ h2 {
   .kitchen-performance-grid { grid-template-columns: 1fr; }
   .inventory-analytics-grid { grid-template-columns: 1fr; }
   .sales-grid { grid-template-columns: 1fr; }
+  .delivery-performance-grid { grid-template-columns: 1fr; }
   .order-engine-grid { grid-template-columns: 1fr; }
   .engine-pipeline { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .event-log-controls { align-items: stretch; flex-direction: column; }
@@ -1601,6 +1613,11 @@ h2 {
   .inventory-category-list small { grid-column: 1 / -1; text-align: left; }
   .inventory-risk-row { grid-template-columns: minmax(0, 1fr) auto; gap: 8px; padding: 12px 0; }
   .inventory-risk-row > div:last-child { grid-column: 1 / -1; justify-items: start; }
+  .delivery-performance-grid { grid-template-columns: 1fr; }
+  .delivery-provider-list > div { grid-template-columns: minmax(0, 1fr) auto; gap: 8px; padding: 10px 0; }
+  .delivery-provider-list small { grid-column: 1 / -1; text-align: left; }
+  .delivery-order-row { grid-template-columns: minmax(0, 1fr) auto; gap: 8px; padding: 12px 0; }
+  .delivery-order-row .status { grid-column: 1; justify-self: start; }
   .kitchen-performance-order { grid-template-columns: minmax(0, 1fr) auto; gap: 8px; padding: 12px 0; }
   .kitchen-performance-order .status { grid-column: 1; justify-self: start; }
   .engine-pipeline { grid-template-columns: 1fr; }

@@ -28,6 +28,7 @@ const PAGE_META: Record<string, { eyebrow: string; title: string }> = {
   "/analytics": { eyebrow: "Performance view", title: "Analytics" },
   "/analytics/sales": { eyebrow: "Performance view", title: "Sales" },
   "/analytics/kitchen": { eyebrow: "Performance view", title: "Kitchen Performance" },
+  "/analytics/delivery": { eyebrow: "Performance view", title: "Delivery Performance" },
   "/analytics/inventory": { eyebrow: "Performance view", title: "Inventory Analytics" },
   "/settings": { eyebrow: "Administration", title: "Settings" },
   "/automation": { eyebrow: "Developer operations", title: "Automation Overview" },

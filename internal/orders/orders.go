@@ -17,22 +17,25 @@ type Item struct {
 	Quantity int    `json:"quantity"`
 }
 type Order struct {
-	ID         string    `json:"id"`
-	Channel    string    `json:"channel"`
-	Status     string    `json:"status"`
-	Notes      string    `json:"notes,omitempty"`
-	TotalMinor *int64    `json:"total_minor"`
-	Currency   string    `json:"currency,omitempty"`
-	Items      []Item    `json:"items"`
-	CreatedAt  time.Time `json:"created_at"`
-	UpdatedAt  time.Time `json:"updated_at"`
+	ID              string     `json:"id"`
+	Channel         string     `json:"channel"`
+	Status          string     `json:"status"`
+	Notes           string     `json:"notes,omitempty"`
+	TotalMinor      *int64     `json:"total_minor"`
+	Currency        string     `json:"currency,omitempty"`
+	DeliveryPartner string     `json:"delivery_partner,omitempty"`
+	DeliveredAt     *time.Time `json:"delivered_at"`
+	Items           []Item     `json:"items"`
+	CreatedAt       time.Time  `json:"created_at"`
+	UpdatedAt       time.Time  `json:"updated_at"`
 }
 type CreateInput struct {
-	Channel    string `json:"channel"`
-	Notes      string `json:"notes"`
-	TotalMinor *int64 `json:"total_minor"`
-	Currency   string `json:"currency"`
-	Items      []Item `json:"items"`
+	Channel         string `json:"channel"`
+	Notes           string `json:"notes"`
+	TotalMinor      *int64 `json:"total_minor"`
+	Currency        string `json:"currency"`
+	DeliveryPartner string `json:"delivery_partner"`
+	Items           []Item `json:"items"`
 }
 
 var ErrNotFound = errors.New("order not found")
@@ -70,7 +73,7 @@ func (s *Service) Create(ctx context.Context, input CreateInput) (Order, error) 
 		return Order{}, ErrInvalidOrder
 	}
 	now := time.Now().UTC()
-	order := Order{ID: uuid.NewString(), Channel: input.Channel, Status: "received", Notes: input.Notes, TotalMinor: input.TotalMinor, Currency: currency, Items: input.Items, CreatedAt: now, UpdatedAt: now}
+	order := Order{ID: uuid.NewString(), Channel: input.Channel, Status: "received", Notes: input.Notes, TotalMinor: input.TotalMinor, Currency: currency, DeliveryPartner: strings.TrimSpace(input.DeliveryPartner), Items: input.Items, CreatedAt: now, UpdatedAt: now}
 	return order, s.repository.Create(ctx, order)
 }
 
@@ -130,6 +133,10 @@ func (r *MemoryRepository) UpdateStatus(_ context.Context, id, status string) (O
 	}
 	order.Status = status
 	order.UpdatedAt = time.Now().UTC()
+	if status == "delivered" && order.DeliveryPartner != "" && order.DeliveredAt == nil {
+		deliveredAt := order.UpdatedAt
+		order.DeliveredAt = &deliveredAt
+	}
 	r.orders[id] = order
 	return order, nil
 }
@@ -149,7 +156,11 @@ func (r *PostgresRepository) Create(ctx context.Context, order Order) error {
 	if order.Currency != "" {
 		currency = order.Currency
 	}
-	if _, err = tx.Exec(ctx, `INSERT INTO orders (id, channel, status, notes, total_minor, currency, created_at, updated_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`, order.ID, order.Channel, order.Status, order.Notes, order.TotalMinor, currency, order.CreatedAt, order.UpdatedAt); err != nil {
+	var deliveryPartner any
+	if order.DeliveryPartner != "" {
+		deliveryPartner = order.DeliveryPartner
+	}
+	if _, err = tx.Exec(ctx, `INSERT INTO orders (id, channel, status, notes, total_minor, currency, delivery_partner, delivered_at, created_at, updated_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`, order.ID, order.Channel, order.Status, order.Notes, order.TotalMinor, currency, deliveryPartner, order.DeliveredAt, order.CreatedAt, order.UpdatedAt); err != nil {
 		return err
 	}
 	for _, item := range order.Items {
@@ -160,7 +171,7 @@ func (r *PostgresRepository) Create(ctx context.Context, order Order) error {
 	return tx.Commit(ctx)
 }
 func (r *PostgresRepository) List(ctx context.Context) ([]Order, error) {
-	rows, err := r.pool.Query(ctx, `SELECT o.id,o.channel,o.status,o.notes,o.total_minor,COALESCE(o.currency,''),o.created_at,o.updated_at,i.name,i.quantity FROM orders o JOIN order_items i ON i.order_id=o.id ORDER BY o.created_at DESC,i.id`)
+	rows, err := r.pool.Query(ctx, `SELECT o.id,o.channel,o.status,o.notes,o.total_minor,COALESCE(o.currency,''),COALESCE(o.delivery_partner,''),o.delivered_at,o.created_at,o.updated_at,i.name,i.quantity FROM orders o JOIN order_items i ON i.order_id=o.id ORDER BY o.created_at DESC,i.id`)
 	if err != nil {
 		return nil, err
 	}
@@ -171,7 +182,7 @@ func (r *PostgresRepository) List(ctx context.Context) ([]Order, error) {
 		var id string
 		var item Item
 		var order Order
-		if err := rows.Scan(&id, &order.Channel, &order.Status, &order.Notes, &order.TotalMinor, &order.Currency, &order.CreatedAt, &order.UpdatedAt, &item.Name, &item.Quantity); err != nil {
+		if err := rows.Scan(&id, &order.Channel, &order.Status, &order.Notes, &order.TotalMinor, &order.Currency, &order.DeliveryPartner, &order.DeliveredAt, &order.CreatedAt, &order.UpdatedAt, &item.Name, &item.Quantity); err != nil {
 			return nil, err
 		}
 		if byID[id] == nil {
@@ -188,7 +199,7 @@ func (r *PostgresRepository) List(ctx context.Context) ([]Order, error) {
 	return result, rows.Err()
 }
 func (r *PostgresRepository) UpdateStatus(ctx context.Context, id, status string) (Order, error) {
-	_, err := r.pool.Exec(ctx, `UPDATE orders SET status=$2,updated_at=NOW() WHERE id=$1`, id, status)
+	_, err := r.pool.Exec(ctx, `UPDATE orders SET status=$2,updated_at=NOW(),delivered_at=CASE WHEN $2='delivered' AND delivery_partner IS NOT NULL AND delivered_at IS NULL THEN NOW() ELSE delivered_at END WHERE id=$1`, id, status)
 	if err != nil {
 		return Order{}, err
 	}

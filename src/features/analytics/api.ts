@@ -11,13 +11,18 @@ export interface MonetaryMetric extends Metric {
   excluded_orders: number;
 }
 
+export interface DeliveryMetric extends Metric {
+  delivered_orders: number;
+  active_orders: number;
+}
+
 export interface AnalyticsReport {
   generated_at: string;
   orders: Metric;
   sales: MonetaryMetric;
   average_ticket: MonetaryMetric;
   kitchen_completion: Metric;
-  delivery_time: Metric;
+  delivery_time: DeliveryMetric;
   printer_availability: Metric;
   printer_utilization: Metric;
   staff_productivity: Metric;

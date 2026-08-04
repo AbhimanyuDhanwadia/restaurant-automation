@@ -46,6 +46,7 @@ export function OrdersPage() {
   const [notes, setNotes] = useState("");
   const [total, setTotal] = useState("");
   const [currency, setCurrency] = useState("INR");
+  const [deliveryPartner, setDeliveryPartner] = useState("");
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const ordersQuery = useQuery({ queryKey: ["orders"], queryFn: listOrders });
@@ -58,6 +59,7 @@ export function OrdersPage() {
       setQuantity(1);
       setNotes("");
       setTotal("");
+      setDeliveryPartner("");
       refreshOrders();
     },
   });
@@ -81,6 +83,7 @@ export function OrdersPage() {
       notes: notes.trim(),
       total_minor: total.trim() ? Math.round(Number(total) * 100) : undefined,
       currency: total.trim() ? currency : undefined,
+      delivery_partner: deliveryPartner.trim() || undefined,
       items: [{ name: itemName.trim(), quantity }],
     });
   }
@@ -108,6 +111,7 @@ export function OrdersPage() {
           <label><span>Quantity</span><input type="number" min="1" value={quantity} onChange={(event) => setQuantity(Number(event.target.value))} required /></label>
           <label><span>Total</span><input type="number" min="0" step="0.01" inputMode="decimal" value={total} onChange={(event) => setTotal(event.target.value)} /></label>
           <label><span>Currency</span><select value={currency} onChange={(event) => setCurrency(event.target.value)} disabled={!total.trim()}><option value="INR">INR</option><option value="USD">USD</option><option value="AED">AED</option></select></label>
+          <label><span>Delivery partner</span><input value={deliveryPartner} onChange={(event) => setDeliveryPartner(event.target.value)} /></label>
           <label><span>Notes</span><input value={notes} onChange={(event) => setNotes(event.target.value)} /></label>
           <button type="submit" className="primary-button" disabled={createMutation.isPending}>
             {createMutation.isPending ? "Creating..." : "Create order"}
@@ -167,6 +171,8 @@ export function OrdersPage() {
               <div><dt>Channel</dt><dd>{selected.channel}</dd></div>
               <div><dt>Items</dt><dd>{orderSummary(selected)}</dd></div>
               <div><dt>Total</dt><dd>{orderTotal(selected)}</dd></div>
+              <div><dt>Delivery partner</dt><dd>{selected.delivery_partner || "Not a delivery"}</dd></div>
+              {selected.delivered_at && <div><dt>Delivered</dt><dd>{new Date(selected.delivered_at).toLocaleString()}</dd></div>}
               <div><dt>Created</dt><dd>{new Date(selected.created_at).toLocaleString()}</dd></div>
               <div><dt>Notes</dt><dd>{selected.notes || "None"}</dd></div>
             </dl>

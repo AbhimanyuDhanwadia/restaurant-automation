@@ -23,6 +23,13 @@ type MonetaryMetric struct {
 	ExcludedOrders int     `json:"excluded_orders"`
 }
 
+type DeliveryMetric struct {
+	Value           float64 `json:"value"`
+	Available       bool    `json:"available"`
+	DeliveredOrders int     `json:"delivered_orders"`
+	ActiveOrders    int     `json:"active_orders"`
+}
+
 type Hour struct {
 	Hour   int `json:"hour"`
 	Orders int `json:"orders"`
@@ -34,7 +41,7 @@ type Report struct {
 	Sales               MonetaryMetric `json:"sales"`
 	AverageTicket       MonetaryMetric `json:"average_ticket"`
 	KitchenCompletion   Metric         `json:"kitchen_completion"`
-	DeliveryTime        Metric         `json:"delivery_time"`
+	DeliveryTime        DeliveryMetric `json:"delivery_time"`
 	PrinterAvailability Metric         `json:"printer_availability"`
 	PrinterUtilization  Metric         `json:"printer_utilization"`
 	StaffProductivity   Metric         `json:"staff_productivity"`
@@ -56,8 +63,8 @@ func NewService(engine *automation.Engine, printerManager *printers.Manager, ord
 }
 
 // Overview combines runtime automation and printer telemetry with durable order
-// totals. Delivery and staffing metrics remain unavailable until their source
-// records are introduced.
+// totals and delivery timestamps. Staffing metrics remain unavailable until
+// their source records are introduced.
 func (s *Service) Overview(ctx context.Context) Report {
 	events := s.engine.Events()
 	orders := make(map[string]struct{})
@@ -99,16 +106,25 @@ func (s *Service) Overview(ctx context.Context) Report {
 		}
 		return peakHours[i].Orders > peakHours[j].Orders
 	})
-	sales, averageTicket := s.sales(ctx)
-	return Report{GeneratedAt: time.Now().UTC(), Orders: Metric{Value: float64(len(orders)), Available: true}, KitchenCompletion: completion, PrinterAvailability: availability, PrinterUtilization: Metric{Value: float64(printed), Available: true}, Sales: sales, AverageTicket: averageTicket, DeliveryTime: Metric{}, StaffProductivity: Metric{}, PeakHours: peakHours}
+	durableOrders, durableOrdersAvailable := s.durableOrders(ctx)
+	sales, averageTicket := sales(durableOrders, durableOrdersAvailable)
+	deliveryTime := deliveryTime(durableOrders, durableOrdersAvailable)
+	return Report{GeneratedAt: time.Now().UTC(), Orders: Metric{Value: float64(len(orders)), Available: true}, KitchenCompletion: completion, PrinterAvailability: availability, PrinterUtilization: Metric{Value: float64(printed), Available: true}, Sales: sales, AverageTicket: averageTicket, DeliveryTime: deliveryTime, StaffProductivity: Metric{}, PeakHours: peakHours}
 }
 
-func (s *Service) sales(ctx context.Context) (MonetaryMetric, MonetaryMetric) {
+func (s *Service) durableOrders(ctx context.Context) ([]orders.Order, bool) {
 	if s.orders == nil {
-		return MonetaryMetric{}, MonetaryMetric{}
+		return nil, false
 	}
 	allOrders, err := s.orders.List(ctx)
 	if err != nil {
+		return nil, false
+	}
+	return allOrders, true
+}
+
+func sales(allOrders []orders.Order, available bool) (MonetaryMetric, MonetaryMetric) {
+	if !available {
 		return MonetaryMetric{}, MonetaryMetric{}
 	}
 	var sum int64
@@ -139,4 +155,30 @@ func (s *Service) sales(ctx context.Context) (MonetaryMetric, MonetaryMetric) {
 	average := result
 	average.Value /= float64(included)
 	return result, average
+}
+
+func deliveryTime(allOrders []orders.Order, available bool) DeliveryMetric {
+	if !available {
+		return DeliveryMetric{}
+	}
+	result := DeliveryMetric{}
+	var totalMinutes float64
+	for _, order := range allOrders {
+		if order.DeliveryPartner == "" || order.Status == "cancelled" {
+			continue
+		}
+		if order.DeliveredAt == nil {
+			result.ActiveOrders++
+			continue
+		}
+		result.DeliveredOrders++
+		if deliveredMinutes := order.DeliveredAt.Sub(order.CreatedAt).Minutes(); deliveredMinutes > 0 {
+			totalMinutes += deliveredMinutes
+		}
+	}
+	if result.DeliveredOrders > 0 {
+		result.Value = totalMinutes / float64(result.DeliveredOrders)
+		result.Available = true
+	}
+	return result
 }

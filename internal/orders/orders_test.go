@@ -35,3 +35,15 @@ func TestServiceRejectsCurrencyWithoutTotal(t *testing.T) {
 		t.Fatalf("error = %v", err)
 	}
 }
+
+func TestDeliveryOrderRecordsFirstCompletionTime(t *testing.T) {
+	service := NewService(NewMemoryRepository())
+	order, err := service.Create(context.Background(), CreateInput{Channel: "swiggy", DeliveryPartner: "Swiggy", Items: []Item{{Name: "Paneer", Quantity: 1}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	updated, err := service.UpdateStatus(context.Background(), order.ID, "delivered")
+	if err != nil || updated.DeliveredAt == nil || updated.DeliveryPartner != "Swiggy" {
+		t.Fatalf("order=%+v err=%v", updated, err)
+	}
+}
