@@ -122,7 +122,17 @@ func main() {
 		kitchenDriver = printers.NewTCPDriver("kitchen", cfg.Printers.KitchenAddress, cfg.Printers.ConnectTimeout)
 		log.Info().Str("address", cfg.Printers.KitchenAddress).Msg("using TCP kitchen printer")
 	}
-	printerManager.Register(kitchenDriver, "kitchen")
+	var cashierDriver printers.Driver = printers.NewMockDriver("cashier")
+	if cfg.Printers.CashierAddress != "" {
+		cashierDriver = printers.NewTCPDriver("cashier", cfg.Printers.CashierAddress, cfg.Printers.ConnectTimeout)
+		log.Info().Str("address", cfg.Printers.CashierAddress).Msg("using TCP cashier printer")
+	}
+	if err := printerManager.Register(kitchenDriver, "kitchen"); err != nil {
+		log.Fatal().Err(err).Msg("register kitchen printer")
+	}
+	if err := printerManager.Register(cashierDriver, "cashier"); err != nil {
+		log.Fatal().Err(err).Msg("register cashier printer")
+	}
 	printerManager.Start(context.Background())
 	defer printerManager.Close()
 	orderService := orders.NewService(orderRepository)

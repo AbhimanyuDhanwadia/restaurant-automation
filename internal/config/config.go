@@ -28,6 +28,7 @@ type Config struct {
 // PrintersConfig holds optional physical network-printer settings.
 type PrintersConfig struct {
 	KitchenAddress string        `mapstructure:"PRINTER_KITCHEN_ADDRESS"`
+	CashierAddress string        `mapstructure:"PRINTER_CASHIER_ADDRESS"`
 	ConnectTimeout time.Duration `mapstructure:"PRINTER_CONNECT_TIMEOUT"`
 }
 
