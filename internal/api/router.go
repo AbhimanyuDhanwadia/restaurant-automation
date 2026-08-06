@@ -99,7 +99,7 @@ func NewRouter(cfg *config.Config, log zerolog.Logger, engine *automation.Engine
 			r.Get("/queue", handlers.AutomationQueue(engine))
 		})
 		r.Get("/orders", handlers.ListOrders(orderService))
-		r.Post("/orders", handlers.CreateOrder(orderService, engine))
+		r.Post("/orders", handlers.CreateOrder(orderService, engine, printerManager, dependenciesConfig.PrintQueue))
 		r.Patch("/orders/{orderID}/status", handlers.UpdateOrderStatus(orderService))
 		r.Get("/tables", handlers.ListTables(tableService))
 		r.Post("/tables", handlers.CreateTable(tableService))
