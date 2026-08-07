@@ -24,3 +24,37 @@ func TestEngineProcessesOrderPipeline(t *testing.T) {
 		t.Fatalf("last event = %s", got)
 	}
 }
+
+func TestEngineRecordsOrderLifecycleEvents(t *testing.T) {
+	engine := NewEngine(1, 10, RetryPolicy{MaxAttempts: 1})
+	engine.Start(context.Background())
+	defer engine.Close()
+
+	cases := []struct {
+		status string
+		want   EventType
+	}{
+		{status: "preparing", want: EventKitchenAccepted},
+		{status: "ready", want: EventOrderReady},
+		{status: "delivered", want: EventOrderDelivered},
+		{status: "cancelled", want: EventOrderCancelled},
+	}
+	for _, test := range cases {
+		if err := engine.RecordOrderStatus(context.Background(), "ORD-200", test.status); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := engine.RecordOrderStatus(context.Background(), "ORD-200", "received"); err != nil {
+		t.Fatal(err)
+	}
+
+	events := engine.Events()
+	if len(events) != len(cases) {
+		t.Fatalf("events = %#v, want %d lifecycle events", events, len(cases))
+	}
+	for index, test := range cases {
+		if events[index].Type != test.want || events[index].Payload["status"] != test.status {
+			t.Fatalf("event %d = %#v, want %s for %s", index, events[index], test.want, test.status)
+		}
+	}
+}

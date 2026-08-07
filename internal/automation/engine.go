@@ -66,6 +66,32 @@ func (e *Engine) SubmitOrder(ctx context.Context, orderID string) error {
 		return nil
 	}})
 }
+
+// RecordOrderStatus publishes the operational lifecycle event that corresponds
+// to a durable order-status transition.
+func (e *Engine) RecordOrderStatus(ctx context.Context, orderID, status string) error {
+	eventType, ok := lifecycleEventType(status)
+	if !ok {
+		return nil
+	}
+	return e.bus.Publish(ctx, NewEvent(eventType, orderID, map[string]string{"status": status}))
+}
+
+func lifecycleEventType(status string) (EventType, bool) {
+	switch status {
+	case "preparing":
+		return EventKitchenAccepted, true
+	case "ready":
+		return EventOrderReady, true
+	case "delivered":
+		return EventOrderDelivered, true
+	case "cancelled":
+		return EventOrderCancelled, true
+	default:
+		return "", false
+	}
+}
+
 func (e *Engine) worker() {
 	defer e.wg.Done()
 	for {

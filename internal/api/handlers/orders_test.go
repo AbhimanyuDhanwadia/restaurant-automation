@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/go-chi/chi/v5"
 	"github.com/restaurantautomation/api/internal/automation"
 	"github.com/restaurantautomation/api/internal/orders"
 	"github.com/restaurantautomation/api/internal/printers"
@@ -90,5 +91,34 @@ func TestCreateOrderRecordsFailedKitchenDispatch(t *testing.T) {
 	}
 	if len(jobs) != 1 || jobs[0].Status != printqueue.StatusFailed || jobs[0].Attempts != 0 {
 		t.Fatalf("jobs = %#v, want one failed undispatched job", jobs)
+	}
+}
+
+func TestUpdateOrderStatusRecordsOneLifecycleEvent(t *testing.T) {
+	engine := automation.NewEngine(1, 10, automation.RetryPolicy{MaxAttempts: 1})
+	engine.Start(context.Background())
+	defer engine.Close()
+
+	service := orders.NewService(orders.NewMemoryRepository())
+	order, err := service.Create(context.Background(), orders.CreateInput{Channel: "dine_in", Items: []orders.Item{{Name: "Veg Biryani", Quantity: 1}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	handler := UpdateOrderStatus(service, engine)
+	for range 2 {
+		request := httptest.NewRequest(http.MethodPatch, "/orders/"+order.ID+"/status", bytes.NewBufferString(`{"status":"preparing"}`))
+		routeContext := chi.NewRouteContext()
+		routeContext.URLParams.Add("orderID", order.ID)
+		request = request.WithContext(context.WithValue(request.Context(), chi.RouteCtxKey, routeContext))
+		recorder := httptest.NewRecorder()
+		handler.ServeHTTP(recorder, request)
+		if recorder.Code != http.StatusOK {
+			t.Fatalf("status = %d, want %d", recorder.Code, http.StatusOK)
+		}
+	}
+
+	events := engine.Events()
+	if len(events) != 1 || events[0].Type != automation.EventKitchenAccepted || events[0].OrderID != order.ID {
+		t.Fatalf("events = %#v, want one kitchen acceptance event for %q", events, order.ID)
 	}
 }

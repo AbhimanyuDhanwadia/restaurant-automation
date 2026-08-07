@@ -15,9 +15,13 @@ func TestServiceCreatesAndUpdatesOrder(t *testing.T) {
 	if order.TotalMinor == nil || *order.TotalMinor != total || order.Currency != "INR" {
 		t.Fatalf("sales data = %+v", order)
 	}
-	updated, err := service.UpdateStatus(context.Background(), order.ID, "preparing")
-	if err != nil || updated.Status != "preparing" {
+	updated, changed, err := service.TransitionStatus(context.Background(), order.ID, "preparing")
+	if err != nil || !changed || updated.Status != "preparing" {
 		t.Fatal(err)
+	}
+	_, changed, err = service.TransitionStatus(context.Background(), order.ID, "preparing")
+	if err != nil || changed {
+		t.Fatalf("changed=%t err=%v, want unchanged order", changed, err)
 	}
 }
 

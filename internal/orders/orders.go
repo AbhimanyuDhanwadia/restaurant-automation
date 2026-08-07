@@ -45,7 +45,7 @@ var ErrInvalidStatus = errors.New("invalid order status")
 type Repository interface {
 	Create(context.Context, Order) error
 	List(context.Context) ([]Order, error)
-	UpdateStatus(context.Context, string, string) (Order, error)
+	UpdateStatus(context.Context, string, string) (Order, bool, error)
 }
 type Service struct{ repository Repository }
 
@@ -91,8 +91,12 @@ func normalizeCurrency(value string) (string, bool) {
 }
 func (s *Service) List(ctx context.Context) ([]Order, error) { return s.repository.List(ctx) }
 func (s *Service) UpdateStatus(ctx context.Context, id, status string) (Order, error) {
+	order, _, err := s.TransitionStatus(ctx, id, status)
+	return order, err
+}
+func (s *Service) TransitionStatus(ctx context.Context, id, status string) (Order, bool, error) {
 	if !validStatus(status) {
-		return Order{}, ErrInvalidStatus
+		return Order{}, false, ErrInvalidStatus
 	}
 	return s.repository.UpdateStatus(ctx, id, status)
 }
@@ -124,12 +128,15 @@ func (r *MemoryRepository) List(_ context.Context) ([]Order, error) {
 	sort.Slice(result, func(i, j int) bool { return result[i].CreatedAt.After(result[j].CreatedAt) })
 	return result, nil
 }
-func (r *MemoryRepository) UpdateStatus(_ context.Context, id, status string) (Order, error) {
+func (r *MemoryRepository) UpdateStatus(_ context.Context, id, status string) (Order, bool, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	order, ok := r.orders[id]
 	if !ok {
-		return Order{}, ErrNotFound
+		return Order{}, false, ErrNotFound
+	}
+	if order.Status == status {
+		return order, false, nil
 	}
 	order.Status = status
 	order.UpdatedAt = time.Now().UTC()
@@ -138,7 +145,7 @@ func (r *MemoryRepository) UpdateStatus(_ context.Context, id, status string) (O
 		order.DeliveredAt = &deliveredAt
 	}
 	r.orders[id] = order
-	return order, nil
+	return order, true, nil
 }
 
 type PostgresRepository struct{ pool *pgxpool.Pool }
@@ -198,19 +205,19 @@ func (r *PostgresRepository) List(ctx context.Context) ([]Order, error) {
 	}
 	return result, rows.Err()
 }
-func (r *PostgresRepository) UpdateStatus(ctx context.Context, id, status string) (Order, error) {
-	_, err := r.pool.Exec(ctx, `UPDATE orders SET status=$2,updated_at=NOW(),delivered_at=CASE WHEN $2='delivered' AND delivery_partner IS NOT NULL AND delivered_at IS NULL THEN NOW() ELSE delivered_at END WHERE id=$1`, id, status)
+func (r *PostgresRepository) UpdateStatus(ctx context.Context, id, status string) (Order, bool, error) {
+	command, err := r.pool.Exec(ctx, `UPDATE orders SET status=$2,updated_at=NOW(),delivered_at=CASE WHEN $2='delivered' AND delivery_partner IS NOT NULL AND delivered_at IS NULL THEN NOW() ELSE delivered_at END WHERE id=$1 AND status IS DISTINCT FROM $2`, id, status)
 	if err != nil {
-		return Order{}, err
+		return Order{}, false, err
 	}
 	orders, err := r.List(ctx)
 	if err != nil {
-		return Order{}, err
+		return Order{}, false, err
 	}
 	for _, o := range orders {
 		if o.ID == id {
-			return o, nil
+			return o, command.RowsAffected() > 0, nil
 		}
 	}
-	return Order{}, ErrNotFound
+	return Order{}, false, ErrNotFound
 }

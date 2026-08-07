@@ -14,6 +14,10 @@ const (
 	EventOrderValidated  EventType = "order.validated"
 	EventOrderStored     EventType = "order.stored"
 	EventOrderQueued     EventType = "order.queued"
+	EventKitchenAccepted EventType = "kitchen.accepted"
+	EventOrderReady      EventType = "order.ready"
+	EventOrderDelivered  EventType = "order.delivered"
+	EventOrderCancelled  EventType = "order.cancelled"
 	EventJobRetrying     EventType = "job.retrying"
 	EventJobFailed       EventType = "job.failed"
 )

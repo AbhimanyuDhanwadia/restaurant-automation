@@ -68,13 +68,13 @@ func queueKitchenTicket(r *http.Request, manager *printers.Manager, queue *print
 	}
 	return nil
 }
-func UpdateOrderStatus(s *orders.Service) http.HandlerFunc {
+func UpdateOrderStatus(s *orders.Service, engine *automation.Engine) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var b struct {
 			Status string `json:"status"`
 		}
 		json.NewDecoder(r.Body).Decode(&b)
-		o, e := s.UpdateStatus(r.Context(), chi.URLParam(r, "orderID"), b.Status)
+		o, changed, e := s.TransitionStatus(r.Context(), chi.URLParam(r, "orderID"), b.Status)
 		if errors.Is(e, orders.ErrNotFound) {
 			http.NotFound(w, r)
 			return
@@ -82,6 +82,11 @@ func UpdateOrderStatus(s *orders.Service) http.HandlerFunc {
 		if e != nil {
 			http.Error(w, "invalid status", 400)
 			return
+		}
+		if changed && engine != nil {
+			// The order update is authoritative. A stopped in-memory engine must
+			// not cause a client to repeat an already-completed status update.
+			_ = engine.RecordOrderStatus(r.Context(), o.ID, o.Status)
 		}
 		writeJSON(w, 200, o)
 	}
