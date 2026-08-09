@@ -35,6 +35,74 @@ func TestServiceTracksPrintedJobAndReprint(t *testing.T) {
 	}
 }
 
+func TestServiceRecoversOnlyQueuedJobs(t *testing.T) {
+	service := NewService(NewMemoryRepository())
+	queued, err := service.Queue(context.Background(), printers.Ticket{OrderID: "ORD-403", Destination: "kitchen", Lines: []printers.Line{{Text: "Dosa", Quantity: 1}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	printing, err := service.Queue(context.Background(), printers.Ticket{OrderID: "ORD-404", Destination: "kitchen", Lines: []printers.Line{{Text: "Idli", Quantity: 1}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	service.Printing(context.Background(), printers.Ticket{PrintJobID: printing.ID}, 1)
+	failed, err := service.Queue(context.Background(), printers.Ticket{OrderID: "ORD-405", Destination: "kitchen", Lines: []printers.Line{{Text: "Chai", Quantity: 1}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	service.Failed(context.Background(), printers.Ticket{PrintJobID: failed.ID}, 1, nil)
+
+	driver := printers.NewMockDriver("kitchen")
+	manager := printers.NewManager(printers.ESCPosFormatter{}, 1)
+	if err := manager.Register(driver, "kitchen"); err != nil {
+		t.Fatal(err)
+	}
+	manager.SetObserver(service)
+	if err := manager.Start(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	defer manager.Close()
+
+	recovered, err := service.RecoverQueued(context.Background(), manager)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if recovered != 1 {
+		t.Fatalf("recovered = %d, want 1", recovered)
+	}
+	waitForDriverPrints(t, driver, 1)
+
+	jobs, err := service.List(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	statusByID := make(map[string]Status, len(jobs))
+	for _, job := range jobs {
+		statusByID[job.ID] = job.Status
+	}
+	if statusByID[queued.ID] != StatusPrinted || statusByID[printing.ID] != StatusPrinting || statusByID[failed.ID] != StatusFailed {
+		t.Fatalf("recovery statuses = %#v", statusByID)
+	}
+}
+
+func TestServiceRecoveryRequiresPrinterManager(t *testing.T) {
+	service := NewService(NewMemoryRepository())
+	if _, err := service.RecoverQueued(context.Background(), nil); err != ErrPrinterManagerUnavailable {
+		t.Fatalf("error = %v, want %v", err, ErrPrinterManagerUnavailable)
+	}
+}
+
+func waitForDriverPrints(t *testing.T, driver *printers.MockDriver, count int) {
+	t.Helper()
+	deadline := time.Now().Add(time.Second)
+	for driver.PrintCount() < count && time.Now().Before(deadline) {
+		time.Sleep(time.Millisecond)
+	}
+	if driver.PrintCount() != count {
+		t.Fatalf("prints = %d, want %d", driver.PrintCount(), count)
+	}
+}
+
 func TestManagerNotifiesAdditionalObservers(t *testing.T) {
 	service := NewService(NewMemoryRepository())
 	driver := printers.NewMockDriver("kitchen")

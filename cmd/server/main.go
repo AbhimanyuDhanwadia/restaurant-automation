@@ -133,8 +133,6 @@ func main() {
 	if err := printerManager.Register(cashierDriver, "cashier"); err != nil {
 		log.Fatal().Err(err).Msg("register cashier printer")
 	}
-	printerManager.Start(context.Background())
-	defer printerManager.Close()
 	orderService := orders.NewService(orderRepository)
 	analyticsService := analytics.NewService(engine, printerManager, orderService)
 	intelligenceService := intelligence.NewService(engine, printerManager)
@@ -149,6 +147,15 @@ func main() {
 	userService := users.NewService(userRepository, roleService, cfg.Auth.AdminEmails)
 	printerManager.SetObserver(printQueueService)
 	printerManager.AddObserver(automation.NewPrinterEventObserver(engine))
+	if err := printerManager.Start(context.Background()); err != nil {
+		log.Fatal().Err(err).Msg("start printer manager")
+	}
+	defer printerManager.Close()
+	if recovered, err := printQueueService.RecoverQueued(context.Background(), printerManager); err != nil {
+		log.Error().Err(err).Msg("recover queued print jobs")
+	} else if recovered > 0 {
+		log.Info().Int("jobs", recovered).Msg("recovered queued print jobs")
+	}
 	intelligenceService.Start(context.Background())
 	defer intelligenceService.Close()
 	router := api.NewRouter(cfg, log, engine, providers, printerManager, analyticsService, intelligenceService, orderService, tableService, inventoryService, staffService, alertService, settingsService, api.Dependencies{Readiness: databasePool, AuditLogReader: eventStore, Database: databaseInspector, PrintQueue: printQueueService, Roles: roleService, Backups: backupService, Users: userService})

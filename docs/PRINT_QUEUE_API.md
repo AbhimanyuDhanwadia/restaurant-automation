@@ -12,4 +12,6 @@ Migration `0009_print_jobs.sql` stores ticket lines, status, attempts, errors, a
 
 The same callbacks also publish `print.started`, `print.finished`, and `print.failed` automation events with the ticket destination and attempt number. PostgreSQL deployments persist them through the existing `operational_events` subscriber; a failed ticket additionally appears in the automation intelligence feed as a printer anomaly.
 
+At server startup, queued jobs are re-dispatched after printer workers and observers are ready. Jobs already marked `printing` are not automatically replayed because their physical outcome is indeterminate after a restart; operators can inspect and deliberately reprint them from the queue. Failed jobs also require an explicit reprint.
+
 Tickets select their target through the required `destination` field. The current server configuration routes `kitchen` and `cashier` independently to their named drivers.

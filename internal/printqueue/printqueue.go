@@ -39,6 +39,7 @@ type Job struct {
 
 var ErrNotFound = errors.New("print job not found")
 var ErrInvalidJob = errors.New("invalid print job")
+var ErrPrinterManagerUnavailable = errors.New("printer manager unavailable")
 
 type Repository interface {
 	Create(context.Context, Job) error
@@ -69,6 +70,32 @@ func (service *Service) Reprint(ctx context.Context, orderID string) (Job, error
 }
 
 func (service *Service) List(ctx context.Context) ([]Job, error) { return service.repository.List(ctx) }
+
+// RecoverQueued dispatches tickets that were durably queued before a process
+// restart. Jobs already marked printing are intentionally not replayed because
+// the previous process may have already sent them to the physical printer.
+func (service *Service) RecoverQueued(ctx context.Context, manager *printers.Manager) (int, error) {
+	if manager == nil {
+		return 0, ErrPrinterManagerUnavailable
+	}
+	jobs, err := service.List(ctx)
+	if err != nil {
+		return 0, err
+	}
+	recovered := 0
+	for _, job := range jobs {
+		if job.Status != StatusQueued {
+			continue
+		}
+		ticket := printers.Ticket{OrderID: job.OrderID, Destination: job.Destination, Lines: job.Lines, Reprint: job.Reprint, PrintJobID: job.ID}
+		if err := manager.Print(ctx, ticket); err != nil {
+			service.Failed(ctx, ticket, 0, err)
+			continue
+		}
+		recovered++
+	}
+	return recovered, nil
+}
 
 func (service *Service) Printing(ctx context.Context, ticket printers.Ticket, attempt int) {
 	service.update(ctx, ticket.PrintJobID, StatusPrinting, attempt, "")
