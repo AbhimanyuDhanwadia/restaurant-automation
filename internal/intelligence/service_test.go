@@ -27,3 +27,15 @@ func TestServiceCreatesInsightsFromFailuresAndOfflinePrinters(t *testing.T) {
 		t.Fatal("expected printer anomaly")
 	}
 }
+
+func TestServiceCreatesPrinterInsightFromPrintFailure(t *testing.T) {
+	engine := automation.NewEngine(1, 10, automation.RetryPolicy{MaxAttempts: 1})
+	printerManager := printers.NewManager(printers.ESCPosFormatter{}, 1)
+	service := NewService(engine, printerManager)
+	service.evaluateEvent(automation.NewEvent(automation.EventPrintFailed, "ORD-501", map[string]string{"destination": "kitchen"}))
+
+	insights := service.Insights()
+	if len(insights) != 1 || insights[0].Kind != "printer_anomaly" || insights[0].Resource != "kitchen" {
+		t.Fatalf("insights = %#v, want kitchen printer anomaly", insights)
+	}
+}

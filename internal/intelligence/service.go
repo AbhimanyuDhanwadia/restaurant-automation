@@ -87,6 +87,12 @@ func (s *Service) evaluateEvent(event automation.Event) {
 		s.record("printer-anomaly:"+event.OrderID, Insight{Kind: "printer_anomaly", Severity: SeverityWarning, Resource: event.OrderID, Title: "Print job is retrying", Detail: "The automation engine retried a job for this order."})
 	case automation.EventJobFailed:
 		s.record("delayed-order:"+event.OrderID, Insight{Kind: "delayed_order", Severity: SeverityCritical, Resource: event.OrderID, Title: "Order requires attention", Detail: "The automation engine could not finish processing this order."})
+	case automation.EventPrintFailed:
+		resource := event.Payload["destination"]
+		if resource == "" {
+			resource = event.OrderID
+		}
+		s.record("printer-anomaly:"+resource, Insight{Kind: "printer_anomaly", Severity: SeverityWarning, Resource: resource, Title: "Print job failed", Detail: "A printer could not complete a ticket and the job is available for reprint."})
 	}
 }
 

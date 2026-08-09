@@ -10,4 +10,6 @@ Authenticated printer endpoints:
 
 Migration `0009_print_jobs.sql` stores ticket lines, status, attempts, errors, and timestamps. Jobs progress through `queued`, `printing`, `printed`, or `failed`; printer lifecycle callbacks update the record without blocking physical printing.
 
+The same callbacks also publish `print.started`, `print.finished`, and `print.failed` automation events with the ticket destination and attempt number. PostgreSQL deployments persist them through the existing `operational_events` subscriber; a failed ticket additionally appears in the automation intelligence feed as a printer anomaly.
+
 Tickets select their target through the required `destination` field. The current server configuration routes `kitchen` and `cashier` independently to their named drivers.

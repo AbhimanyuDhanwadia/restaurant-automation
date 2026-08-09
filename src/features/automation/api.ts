@@ -18,6 +18,8 @@ export interface AutomationEvent {
   type: string;
   order_id: string;
   created_at: string;
+  attempt?: number;
+  payload?: Record<string, string>;
 }
 
 export interface Queue {

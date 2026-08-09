@@ -92,6 +92,16 @@ func lifecycleEventType(status string) (EventType, bool) {
 	}
 }
 
+func (e *Engine) recordPrintEvent(ctx context.Context, eventType EventType, orderID, destination string, attempt int, printErr error) error {
+	payload := map[string]string{"destination": destination}
+	if printErr != nil {
+		payload["error"] = printErr.Error()
+	}
+	event := NewEvent(eventType, orderID, payload)
+	event.Attempt = attempt
+	return e.bus.Publish(ctx, event)
+}
+
 func (e *Engine) worker() {
 	defer e.wg.Done()
 	for {

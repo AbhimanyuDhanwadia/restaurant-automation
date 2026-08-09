@@ -18,6 +18,9 @@ const (
 	EventOrderReady      EventType = "order.ready"
 	EventOrderDelivered  EventType = "order.delivered"
 	EventOrderCancelled  EventType = "order.cancelled"
+	EventPrintStarted    EventType = "print.started"
+	EventPrintFinished   EventType = "print.finished"
+	EventPrintFailed     EventType = "print.failed"
 	EventJobRetrying     EventType = "job.retrying"
 	EventJobFailed       EventType = "job.failed"
 )

@@ -148,6 +148,7 @@ func main() {
 	backupService := backups.NewService(backupRepository)
 	userService := users.NewService(userRepository, roleService, cfg.Auth.AdminEmails)
 	printerManager.SetObserver(printQueueService)
+	printerManager.AddObserver(automation.NewPrinterEventObserver(engine))
 	intelligenceService.Start(context.Background())
 	defer intelligenceService.Close()
 	router := api.NewRouter(cfg, log, engine, providers, printerManager, analyticsService, intelligenceService, orderService, tableService, inventoryService, staffService, alertService, settingsService, api.Dependencies{Readiness: databasePool, AuditLogReader: eventStore, Database: databaseInspector, PrintQueue: printQueueService, Roles: roleService, Backups: backupService, Users: userService})

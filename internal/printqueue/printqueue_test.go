@@ -2,6 +2,7 @@ package printqueue
 
 import (
 	"context"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -32,6 +33,54 @@ func TestServiceTracksPrintedJobAndReprint(t *testing.T) {
 	if !reprint.Reprint || reprint.ID == job.ID || len(reprint.Lines) != 1 {
 		t.Fatalf("reprint = %#v", reprint)
 	}
+}
+
+func TestManagerNotifiesAdditionalObservers(t *testing.T) {
+	service := NewService(NewMemoryRepository())
+	driver := printers.NewMockDriver("kitchen")
+	manager := printers.NewManager(printers.ESCPosFormatter{}, 1)
+	if err := manager.Register(driver, "kitchen"); err != nil {
+		t.Fatal(err)
+	}
+	manager.SetObserver(service)
+	additional := &countingObserver{}
+	manager.AddObserver(additional)
+	if err := manager.Start(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	defer manager.Close()
+
+	job, err := service.Queue(context.Background(), printers.Ticket{OrderID: "ORD-402", Destination: "kitchen", Lines: []printers.Line{{Text: "Coffee", Quantity: 1}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := manager.Print(context.Background(), printers.Ticket{OrderID: job.OrderID, Destination: job.Destination, Lines: job.Lines, PrintJobID: job.ID}); err != nil {
+		t.Fatal(err)
+	}
+	deadline := time.Now().Add(time.Second)
+	for time.Now().Before(deadline) {
+		jobs, err := service.List(context.Background())
+		if err != nil {
+			t.Fatal(err)
+		}
+		if jobs[0].Status == StatusPrinted {
+			if additional.printed.Load() != 1 {
+				t.Fatalf("additional observer printed callbacks = %d, want 1", additional.printed.Load())
+			}
+			return
+		}
+		time.Sleep(time.Millisecond)
+	}
+	t.Fatal("print queue observer did not receive printed callback")
+}
+
+type countingObserver struct{ printed atomic.Int32 }
+
+func (*countingObserver) Printing(context.Context, printers.Ticket, int) {}
+func (observer *countingObserver) Printed(context.Context, printers.Ticket, int) {
+	observer.printed.Add(1)
+}
+func (*countingObserver) Failed(context.Context, printers.Ticket, int, error) {
 }
 
 func TestManagerObserverMarksDurableJobPrinted(t *testing.T) {

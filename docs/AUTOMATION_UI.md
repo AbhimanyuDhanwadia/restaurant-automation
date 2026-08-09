@@ -10,6 +10,6 @@ The Automation dashboard reads the authenticated API every five seconds:
 
 It uses the shared frontend API client, including the current Supabase access token when authentication is enabled.
 
-The dashboard reports only data exposed by those services. Captured order count, queue depth, retries, provider and printer status, events, and intelligence signals are live. Average print time, queue latency, database health, and internet health remain unavailable until dedicated telemetry or health endpoints are introduced.
+The dashboard reports only data exposed by those services. Captured order count, queue depth, retries, provider and printer status, order lifecycle events, print lifecycle events, and intelligence signals are live. A failed print generates a printer-anomaly signal with the affected destination. Average print time, queue latency, database health, and internet health remain unavailable until dedicated telemetry or health endpoints are introduced.
 
 An API failure is visible and can be retried; the dashboard does not replace unavailable runtime data with mock values.

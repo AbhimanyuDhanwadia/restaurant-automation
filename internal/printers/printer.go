@@ -77,12 +77,26 @@ type Manager struct {
 	cancel     context.CancelFunc
 	wg         sync.WaitGroup
 	started    bool
-	observer   JobObserver
+	observers  []JobObserver
 }
 
 func (m *Manager) SetObserver(observer JobObserver) {
 	m.mu.Lock()
-	m.observer = observer
+	m.observers = nil
+	if observer != nil {
+		m.observers = append(m.observers, observer)
+	}
+	m.mu.Unlock()
+}
+
+// AddObserver registers another independent lifecycle consumer. Print queue
+// persistence and automation telemetry can therefore observe the same job.
+func (m *Manager) AddObserver(observer JobObserver) {
+	if observer == nil {
+		return
+	}
+	m.mu.Lock()
+	m.observers = append(m.observers, observer)
 	m.mu.Unlock()
 }
 
@@ -187,25 +201,25 @@ func (m *Manager) worker(printer *managedPrinter) {
 }
 func (m *Manager) notifyPrinting(ticket Ticket, attempt int) {
 	m.mu.RLock()
-	observer := m.observer
+	observers := append([]JobObserver(nil), m.observers...)
 	m.mu.RUnlock()
-	if observer != nil {
+	for _, observer := range observers {
 		observer.Printing(m.ctx, ticket, attempt)
 	}
 }
 func (m *Manager) notifyPrinted(ticket Ticket, attempt int) {
 	m.mu.RLock()
-	observer := m.observer
+	observers := append([]JobObserver(nil), m.observers...)
 	m.mu.RUnlock()
-	if observer != nil {
+	for _, observer := range observers {
 		observer.Printed(m.ctx, ticket, attempt)
 	}
 }
 func (m *Manager) notifyFailed(ticket Ticket, attempt int, err error) {
 	m.mu.RLock()
-	observer := m.observer
+	observers := append([]JobObserver(nil), m.observers...)
 	m.mu.RUnlock()
-	if observer != nil {
+	for _, observer := range observers {
 		observer.Failed(m.ctx, ticket, attempt, err)
 	}
 }

@@ -534,7 +534,7 @@ h2 {
 .event-log-list { display: grid; }
 .event-log-row { display: grid; grid-template-columns: 86px minmax(0, 1fr) auto; align-items: center; gap: 14px; min-height: 58px; border-top: 1px solid #ece7df; }
 .event-log-row:first-child { border-top: 0; }
-.event-log-row time, .event-log-row span, .event-retention-copy { color: #65716d; font-size: 0.82rem; }
+.event-log-row time, .event-log-row span, .event-log-row small, .event-retention-copy { color: #65716d; font-size: 0.82rem; }
 .event-log-row > div { display: grid; gap: 4px; }
 .event-log-row code { color: #65716d; font-size: 0.76rem; }
 .event-retention-copy { max-width: 70ch; margin: 0; line-height: 1.5; }
