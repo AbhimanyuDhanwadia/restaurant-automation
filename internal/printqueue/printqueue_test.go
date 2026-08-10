@@ -92,6 +92,58 @@ func TestServiceRecoveryRequiresPrinterManager(t *testing.T) {
 	}
 }
 
+func TestServiceRecoveryClaimsQueuedJobsOnce(t *testing.T) {
+	repository := NewMemoryRepository()
+	service := NewService(repository)
+	job, err := service.Queue(context.Background(), printers.Ticket{OrderID: "ORD-406", Destination: "kitchen", Lines: []printers.Line{{Text: "Tea", Quantity: 1}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	manager := printers.NewManager(printers.ESCPosFormatter{}, 1)
+	if err := manager.Register(printers.NewMockDriver("kitchen"), "kitchen"); err != nil {
+		t.Fatal(err)
+	}
+
+	recovered, err := service.RecoverQueued(context.Background(), manager)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if recovered != 1 {
+		t.Fatalf("recovered = %d, want 1", recovered)
+	}
+	recovered, err = service.RecoverQueued(context.Background(), manager)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if recovered != 0 {
+		t.Fatalf("second recovery = %d, want 0", recovered)
+	}
+	jobs, err := service.List(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if jobs[0].ID != job.ID || jobs[0].Status != StatusPrinting || jobs[0].Attempts != 1 {
+		t.Fatalf("claimed job = %#v", jobs[0])
+	}
+}
+
+func TestMemoryRepositoryClaimQueuedSkipsNonQueuedJobs(t *testing.T) {
+	repository := NewMemoryRepository()
+	service := NewService(repository)
+	job, err := service.Queue(context.Background(), printers.Ticket{OrderID: "ORD-407", Destination: "kitchen", Lines: []printers.Line{{Text: "Coffee", Quantity: 1}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	service.Failed(context.Background(), printers.Ticket{PrintJobID: job.ID}, 2, nil)
+	claimed, err := repository.ClaimQueued(context.Background(), job.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if claimed {
+		t.Fatal("failed job was claimed for recovery")
+	}
+}
+
 func waitForDriverPrints(t *testing.T, driver *printers.MockDriver, count int) {
 	t.Helper()
 	deadline := time.Now().Add(time.Second)

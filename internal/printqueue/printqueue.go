@@ -45,6 +45,7 @@ type Repository interface {
 	Create(context.Context, Job) error
 	List(context.Context) ([]Job, error)
 	LatestForOrder(context.Context, string) (Job, error)
+	ClaimQueued(context.Context, string) (bool, error)
 	Update(context.Context, string, Status, int, string) error
 }
 
@@ -87,9 +88,16 @@ func (service *Service) RecoverQueued(ctx context.Context, manager *printers.Man
 		if job.Status != StatusQueued {
 			continue
 		}
+		claimed, err := service.repository.ClaimQueued(ctx, job.ID)
+		if err != nil {
+			return recovered, err
+		}
+		if !claimed {
+			continue
+		}
 		ticket := printers.Ticket{OrderID: job.OrderID, Destination: job.Destination, Lines: job.Lines, Reprint: job.Reprint, PrintJobID: job.ID}
 		if err := manager.Print(ctx, ticket); err != nil {
-			service.Failed(ctx, ticket, 0, err)
+			service.Failed(ctx, ticket, job.Attempts+1, err)
 			continue
 		}
 		recovered++
@@ -163,6 +171,20 @@ func (repository *MemoryRepository) Update(_ context.Context, id string, status 
 	repository.jobs[id] = job
 	return nil
 }
+func (repository *MemoryRepository) ClaimQueued(_ context.Context, id string) (bool, error) {
+	repository.mu.Lock()
+	defer repository.mu.Unlock()
+	job, ok := repository.jobs[id]
+	if !ok {
+		return false, ErrNotFound
+	}
+	if job.Status != StatusQueued {
+		return false, nil
+	}
+	job.Status, job.Attempts, job.LastError, job.UpdatedAt = StatusPrinting, job.Attempts+1, "", time.Now().UTC()
+	repository.jobs[id] = job
+	return true, nil
+}
 
 type PostgresRepository struct{ pool *pgxpool.Pool }
 
@@ -209,6 +231,13 @@ func (repository *PostgresRepository) Update(ctx context.Context, id string, sta
 		return ErrNotFound
 	}
 	return nil
+}
+func (repository *PostgresRepository) ClaimQueued(ctx context.Context, id string) (bool, error) {
+	command, err := repository.pool.Exec(ctx, `UPDATE print_jobs SET status=$2, attempts=attempts+1, last_error='', updated_at=NOW() WHERE id=$1 AND status=$3`, id, StatusPrinting, StatusQueued)
+	if err != nil {
+		return false, err
+	}
+	return command.RowsAffected() > 0, nil
 }
 func scanJobs(rows pgx.Rows) ([]Job, error) {
 	result := make([]Job, 0)
