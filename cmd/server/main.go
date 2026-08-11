@@ -156,6 +156,21 @@ func main() {
 	} else if recovered > 0 {
 		log.Info().Int("jobs", recovered).Msg("recovered queued print jobs")
 	}
+	if jobs, err := printQueueService.List(context.Background()); err != nil {
+		log.Error().Err(err).Msg("inspect print jobs for review")
+	} else {
+		needsReview := 0
+		for _, job := range jobs {
+			if job.Status != printqueue.StatusPrinting {
+				continue
+			}
+			intelligenceService.RecordPrintJobNeedsReview(job.ID, job.Destination)
+			needsReview++
+		}
+		if needsReview > 0 {
+			log.Warn().Int("jobs", needsReview).Msg("print jobs need operator review")
+		}
+	}
 	intelligenceService.Start(context.Background())
 	defer intelligenceService.Close()
 	router := api.NewRouter(cfg, log, engine, providers, printerManager, analyticsService, intelligenceService, orderService, tableService, inventoryService, staffService, alertService, settingsService, api.Dependencies{Readiness: databasePool, AuditLogReader: eventStore, Database: databaseInspector, PrintQueue: printQueueService, Roles: roleService, Backups: backupService, Users: userService})

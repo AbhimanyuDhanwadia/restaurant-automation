@@ -108,6 +108,14 @@ func (s *Service) evaluateRuntime() {
 	}
 }
 
+func (s *Service) RecordPrintJobNeedsReview(jobID, destination string) {
+	resource := destination
+	if resource == "" {
+		resource = jobID
+	}
+	s.record("print-review:"+jobID, Insight{Kind: "printer_anomaly", Severity: SeverityWarning, Resource: resource, Title: "Print job needs review", Detail: "A ticket was already printing before startup and was not replayed automatically."})
+}
+
 func (s *Service) record(key string, insight Insight) {
 	now := time.Now().UTC()
 	s.mu.Lock()
