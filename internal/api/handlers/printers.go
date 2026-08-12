@@ -100,3 +100,30 @@ func RetryPrintJob(manager *printers.Manager, queue *printqueue.Service) http.Ha
 		writeJSON(w, http.StatusAccepted, job)
 	}
 }
+func RequeuePrintJob(manager *printers.Manager, queue *printqueue.Service) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		jobID := chi.URLParam(r, "jobID")
+		if queue == nil {
+			http.Error(w, "print queue unavailable", http.StatusServiceUnavailable)
+			return
+		}
+		job, err := queue.RequeuePrinting(r.Context(), jobID)
+		if err != nil {
+			status := http.StatusInternalServerError
+			if errors.Is(err, printqueue.ErrNotFound) {
+				status = http.StatusNotFound
+			} else if errors.Is(err, printqueue.ErrJobNotPrinting) {
+				status = http.StatusConflict
+			}
+			http.Error(w, err.Error(), status)
+			return
+		}
+		ticket := printers.Ticket{OrderID: job.OrderID, Destination: job.Destination, Lines: job.Lines, Reprint: true, PrintJobID: job.ID}
+		if err := manager.Print(r.Context(), ticket); err != nil {
+			queue.Failed(r.Context(), ticket, 0, err)
+			http.Error(w, err.Error(), http.StatusServiceUnavailable)
+			return
+		}
+		writeJSON(w, http.StatusAccepted, job)
+	}
+}

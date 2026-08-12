@@ -66,6 +66,38 @@ func TestServiceRetryFailedRejectsActiveJob(t *testing.T) {
 	}
 }
 
+func TestServiceRequeuesPrintingJobFromExactTicket(t *testing.T) {
+	service := NewService(NewMemoryRepository())
+	job, err := service.Queue(context.Background(), printers.Ticket{OrderID: "ORD-412", Destination: "kitchen", Lines: []printers.Line{{Text: "Vada", Quantity: 2}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	service.Printing(context.Background(), printers.Ticket{PrintJobID: job.ID}, 1)
+
+	requeued, err := service.RequeuePrinting(context.Background(), job.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if requeued.ID == job.ID || requeued.OrderID != job.OrderID || requeued.Destination != job.Destination || !requeued.Reprint || requeued.Status != StatusQueued {
+		t.Fatalf("requeued = %#v, source = %#v", requeued, job)
+	}
+	if len(requeued.Lines) != 1 || requeued.Lines[0].Text != "Vada" {
+		t.Fatalf("requeued lines = %#v", requeued.Lines)
+	}
+}
+
+func TestServiceRequeuePrintingRejectsFailedJob(t *testing.T) {
+	service := NewService(NewMemoryRepository())
+	job, err := service.Queue(context.Background(), printers.Ticket{OrderID: "ORD-413", Destination: "cashier", Lines: []printers.Line{{Text: "Receipt", Quantity: 1}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	service.Failed(context.Background(), printers.Ticket{PrintJobID: job.ID}, 1, nil)
+	if _, err := service.RequeuePrinting(context.Background(), job.ID); err != ErrJobNotPrinting {
+		t.Fatalf("error = %v, want %v", err, ErrJobNotPrinting)
+	}
+}
+
 func TestServiceRecoversOnlyQueuedJobs(t *testing.T) {
 	service := NewService(NewMemoryRepository())
 	queued, err := service.Queue(context.Background(), printers.Ticket{OrderID: "ORD-403", Destination: "kitchen", Lines: []printers.Line{{Text: "Dosa", Quantity: 1}}})

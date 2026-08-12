@@ -90,6 +90,7 @@ func NewRouter(cfg *config.Config, log zerolog.Logger, engine *automation.Engine
 		r.With(appm.RequirePermission(dependenciesConfig.Users, "integrations.manage")).Get("/integrations", handlers.Integrations(registry))
 		r.With(appm.RequirePermission(dependenciesConfig.Users, "printers.manage")).Get("/printers", handlers.Printers(printerManager))
 		r.With(appm.RequirePermission(dependenciesConfig.Users, "printers.manage")).Get("/printers/queue", handlers.PrintQueue(dependenciesConfig.PrintQueue))
+		r.With(appm.RequirePermission(dependenciesConfig.Users, "printers.manage")).Post("/printers/queue/{jobID}/requeue", handlers.RequeuePrintJob(printerManager, dependenciesConfig.PrintQueue))
 		r.With(appm.RequirePermission(dependenciesConfig.Users, "printers.manage")).Post("/printers/queue/{jobID}/retry", handlers.RetryPrintJob(printerManager, dependenciesConfig.PrintQueue))
 		r.With(appm.RequirePermission(dependenciesConfig.Users, "printers.manage")).Post("/printers/tickets", handlers.PrintTicket(printerManager, dependenciesConfig.PrintQueue))
 		r.With(appm.RequirePermission(dependenciesConfig.Users, "printers.manage")).Post("/printers/tickets/{orderID}/reprint", handlers.ReprintTicket(printerManager, dependenciesConfig.PrintQueue))

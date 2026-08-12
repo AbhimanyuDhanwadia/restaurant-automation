@@ -40,6 +40,7 @@ type Job struct {
 var ErrNotFound = errors.New("print job not found")
 var ErrInvalidJob = errors.New("invalid print job")
 var ErrJobNotFailed = errors.New("print job is not failed")
+var ErrJobNotPrinting = errors.New("print job is not printing")
 var ErrPrinterManagerUnavailable = errors.New("printer manager unavailable")
 
 type Repository interface {
@@ -79,6 +80,17 @@ func (service *Service) RetryFailed(ctx context.Context, id string) (Job, error)
 	}
 	if job.Status != StatusFailed {
 		return Job{}, ErrJobNotFailed
+	}
+	return service.Queue(ctx, printers.Ticket{OrderID: job.OrderID, Destination: job.Destination, Lines: job.Lines, Reprint: true})
+}
+
+func (service *Service) RequeuePrinting(ctx context.Context, id string) (Job, error) {
+	job, err := service.repository.Get(ctx, strings.TrimSpace(id))
+	if err != nil {
+		return Job{}, err
+	}
+	if job.Status != StatusPrinting {
+		return Job{}, ErrJobNotPrinting
 	}
 	return service.Queue(ctx, printers.Ticket{OrderID: job.OrderID, Destination: job.Destination, Lines: job.Lines, Reprint: true})
 }
