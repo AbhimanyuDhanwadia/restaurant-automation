@@ -21,4 +21,5 @@ export interface PrintJob {
 }
 
 export const listPrintJobs = () => apiRequest<PrintJob[]>("/api/v1/printers/queue");
+export const retryPrintJob = (jobID: string) => apiRequest<PrintJob>(`/api/v1/printers/queue/${encodeURIComponent(jobID)}/retry`, { method: "POST" });
 export const reprintOrder = (orderID: string) => apiRequest<PrintJob>(`/api/v1/printers/tickets/${encodeURIComponent(orderID)}/reprint`, { method: "POST" });

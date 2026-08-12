@@ -39,10 +39,12 @@ type Job struct {
 
 var ErrNotFound = errors.New("print job not found")
 var ErrInvalidJob = errors.New("invalid print job")
+var ErrJobNotFailed = errors.New("print job is not failed")
 var ErrPrinterManagerUnavailable = errors.New("printer manager unavailable")
 
 type Repository interface {
 	Create(context.Context, Job) error
+	Get(context.Context, string) (Job, error)
 	List(context.Context) ([]Job, error)
 	LatestForOrder(context.Context, string) (Job, error)
 	ClaimQueued(context.Context, string) (bool, error)
@@ -66,6 +68,17 @@ func (service *Service) Reprint(ctx context.Context, orderID string) (Job, error
 	job, err := service.repository.LatestForOrder(ctx, strings.TrimSpace(orderID))
 	if err != nil {
 		return Job{}, err
+	}
+	return service.Queue(ctx, printers.Ticket{OrderID: job.OrderID, Destination: job.Destination, Lines: job.Lines, Reprint: true})
+}
+
+func (service *Service) RetryFailed(ctx context.Context, id string) (Job, error) {
+	job, err := service.repository.Get(ctx, strings.TrimSpace(id))
+	if err != nil {
+		return Job{}, err
+	}
+	if job.Status != StatusFailed {
+		return Job{}, ErrJobNotFailed
 	}
 	return service.Queue(ctx, printers.Ticket{OrderID: job.OrderID, Destination: job.Destination, Lines: job.Lines, Reprint: true})
 }
@@ -146,6 +159,15 @@ func (repository *MemoryRepository) List(_ context.Context) ([]Job, error) {
 	sort.Slice(result, func(i, j int) bool { return result[i].CreatedAt.After(result[j].CreatedAt) })
 	return result, nil
 }
+func (repository *MemoryRepository) Get(_ context.Context, id string) (Job, error) {
+	repository.mu.RLock()
+	defer repository.mu.RUnlock()
+	job, ok := repository.jobs[id]
+	if !ok {
+		return Job{}, ErrNotFound
+	}
+	return job, nil
+}
 func (repository *MemoryRepository) LatestForOrder(_ context.Context, orderID string) (Job, error) {
 	repository.mu.RLock()
 	defer repository.mu.RUnlock()
@@ -206,6 +228,21 @@ func (repository *PostgresRepository) List(ctx context.Context) ([]Job, error) {
 	}
 	defer rows.Close()
 	return scanJobs(rows)
+}
+func (repository *PostgresRepository) Get(ctx context.Context, id string) (Job, error) {
+	rows, err := repository.pool.Query(ctx, `SELECT id, order_id, destination, lines, reprint, status, attempts, last_error, created_at, updated_at FROM print_jobs WHERE id=$1`, id)
+	if err != nil {
+		return Job{}, err
+	}
+	defer rows.Close()
+	jobs, err := scanJobs(rows)
+	if err != nil {
+		return Job{}, err
+	}
+	if len(jobs) == 0 {
+		return Job{}, ErrNotFound
+	}
+	return jobs[0], nil
 }
 func (repository *PostgresRepository) LatestForOrder(ctx context.Context, orderID string) (Job, error) {
 	rows, err := repository.pool.Query(ctx, `SELECT id, order_id, destination, lines, reprint, status, attempts, last_error, created_at, updated_at FROM print_jobs WHERE order_id=$1 ORDER BY created_at DESC LIMIT 1`, orderID)
