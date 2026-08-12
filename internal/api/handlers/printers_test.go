@@ -91,6 +91,9 @@ func TestRequeuePrintJobAcceptsPrintingJob(t *testing.T) {
 	if len(jobs) != 2 || jobs[0].Status != printqueue.StatusQueued || !jobs[0].Reprint {
 		t.Fatalf("jobs = %#v, want queued reprint job first", jobs)
 	}
+	if jobs[1].ID != printing.ID || jobs[1].Status != printqueue.StatusReviewed {
+		t.Fatalf("jobs = %#v, want reviewed source job", jobs)
+	}
 }
 
 func TestRequeuePrintJobRejectsNonPrintingJob(t *testing.T) {

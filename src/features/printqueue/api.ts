@@ -1,6 +1,6 @@
 import { apiRequest } from "@/lib/api";
 
-export type PrintJobStatus = "queued" | "printing" | "printed" | "failed";
+export type PrintJobStatus = "queued" | "printing" | "printed" | "failed" | "reviewed";
 
 export interface PrintLine {
   text: string;

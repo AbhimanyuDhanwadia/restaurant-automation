@@ -5,7 +5,7 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { Panel, PanelHeading } from "@/components/ui/Panel";
 import { listPrintJobs, reprintOrder, requeuePrintJob, retryPrintJob, type PrintJobStatus } from "@/features/printqueue/api";
 
-const statuses: Array<PrintJobStatus | "all"> = ["all", "queued", "printing", "printed", "failed"];
+const statuses: Array<PrintJobStatus | "all"> = ["all", "queued", "printing", "printed", "failed", "reviewed"];
 
 export function PrintQueuePage() {
   const [filter, setFilter] = useState<PrintJobStatus | "all">("all");

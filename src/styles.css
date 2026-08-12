@@ -577,6 +577,7 @@ h2 {
 .status-printing { background: #e8f2ff; color: #17527d; }
 .status-printed { background: #e5f6ea; color: #1f6b36; }
 .status-failed { background: #ffe9df; color: #a43b21; }
+.status-reviewed { background: #eeeae4; color: #56514b; }
 .spin { animation: spin 0.8s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 

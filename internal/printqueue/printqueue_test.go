@@ -84,6 +84,16 @@ func TestServiceRequeuesPrintingJobFromExactTicket(t *testing.T) {
 	if len(requeued.Lines) != 1 || requeued.Lines[0].Text != "Vada" {
 		t.Fatalf("requeued lines = %#v", requeued.Lines)
 	}
+	source, err := service.repository.Get(context.Background(), job.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if source.Status != StatusReviewed || source.LastError != "Requeued after operator review" {
+		t.Fatalf("source = %#v, want reviewed source job", source)
+	}
+	if _, err := service.RequeuePrinting(context.Background(), job.ID); err != ErrJobNotPrinting {
+		t.Fatalf("second requeue error = %v, want %v", err, ErrJobNotPrinting)
+	}
 }
 
 func TestServiceRequeuePrintingRejectsFailedJob(t *testing.T) {

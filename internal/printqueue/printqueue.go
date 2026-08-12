@@ -22,6 +22,7 @@ const (
 	StatusPrinting Status = "printing"
 	StatusPrinted  Status = "printed"
 	StatusFailed   Status = "failed"
+	StatusReviewed Status = "reviewed"
 )
 
 type Job struct {
@@ -49,6 +50,7 @@ type Repository interface {
 	List(context.Context) ([]Job, error)
 	LatestForOrder(context.Context, string) (Job, error)
 	ClaimQueued(context.Context, string) (bool, error)
+	RequeuePrinting(context.Context, string, Job) (bool, error)
 	Update(context.Context, string, Status, int, string) error
 }
 
@@ -57,12 +59,20 @@ type Service struct{ repository Repository }
 func NewService(repository Repository) *Service { return &Service{repository: repository} }
 
 func (service *Service) Queue(ctx context.Context, ticket printers.Ticket) (Job, error) {
+	job, err := newJob(ticket)
+	if err != nil {
+		return Job{}, err
+	}
+	return job, service.repository.Create(ctx, job)
+}
+
+func newJob(ticket printers.Ticket) (Job, error) {
 	if strings.TrimSpace(ticket.OrderID) == "" || strings.TrimSpace(ticket.Destination) == "" || len(ticket.Lines) == 0 {
 		return Job{}, ErrInvalidJob
 	}
 	now := time.Now().UTC()
 	job := Job{ID: uuid.NewString(), OrderID: strings.TrimSpace(ticket.OrderID), Destination: strings.TrimSpace(ticket.Destination), Lines: ticket.Lines, Reprint: ticket.Reprint, Status: StatusQueued, CreatedAt: now, UpdatedAt: now}
-	return job, service.repository.Create(ctx, job)
+	return job, nil
 }
 
 func (service *Service) Reprint(ctx context.Context, orderID string) (Job, error) {
@@ -92,7 +102,18 @@ func (service *Service) RequeuePrinting(ctx context.Context, id string) (Job, er
 	if job.Status != StatusPrinting {
 		return Job{}, ErrJobNotPrinting
 	}
-	return service.Queue(ctx, printers.Ticket{OrderID: job.OrderID, Destination: job.Destination, Lines: job.Lines, Reprint: true})
+	replacement, err := newJob(printers.Ticket{OrderID: job.OrderID, Destination: job.Destination, Lines: job.Lines, Reprint: true})
+	if err != nil {
+		return Job{}, err
+	}
+	requeued, err := service.repository.RequeuePrinting(ctx, job.ID, replacement)
+	if err != nil {
+		return Job{}, err
+	}
+	if !requeued {
+		return Job{}, ErrJobNotPrinting
+	}
+	return replacement, nil
 }
 
 func (service *Service) List(ctx context.Context) ([]Job, error) { return service.repository.List(ctx) }
@@ -219,6 +240,21 @@ func (repository *MemoryRepository) ClaimQueued(_ context.Context, id string) (b
 	repository.jobs[id] = job
 	return true, nil
 }
+func (repository *MemoryRepository) RequeuePrinting(_ context.Context, id string, replacement Job) (bool, error) {
+	repository.mu.Lock()
+	defer repository.mu.Unlock()
+	job, ok := repository.jobs[id]
+	if !ok {
+		return false, ErrNotFound
+	}
+	if job.Status != StatusPrinting {
+		return false, nil
+	}
+	job.Status, job.LastError, job.UpdatedAt = StatusReviewed, "Requeued after operator review", time.Now().UTC()
+	repository.jobs[id] = job
+	repository.jobs[replacement.ID] = replacement
+	return true, nil
+}
 
 type PostgresRepository struct{ pool *pgxpool.Pool }
 
@@ -287,6 +323,31 @@ func (repository *PostgresRepository) ClaimQueued(ctx context.Context, id string
 		return false, err
 	}
 	return command.RowsAffected() > 0, nil
+}
+func (repository *PostgresRepository) RequeuePrinting(ctx context.Context, id string, replacement Job) (bool, error) {
+	lines, err := json.Marshal(replacement.Lines)
+	if err != nil {
+		return false, err
+	}
+	tx, err := repository.pool.Begin(ctx)
+	if err != nil {
+		return false, err
+	}
+	defer tx.Rollback(ctx)
+	command, err := tx.Exec(ctx, `UPDATE print_jobs SET status=$2, last_error=$3, updated_at=NOW() WHERE id=$1 AND status=$4`, id, StatusReviewed, "Requeued after operator review", StatusPrinting)
+	if err != nil {
+		return false, err
+	}
+	if command.RowsAffected() == 0 {
+		return false, nil
+	}
+	if _, err := tx.Exec(ctx, `INSERT INTO print_jobs (id, order_id, destination, lines, reprint, status, attempts, last_error, created_at, updated_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`, replacement.ID, replacement.OrderID, replacement.Destination, lines, replacement.Reprint, replacement.Status, replacement.Attempts, replacement.LastError, replacement.CreatedAt, replacement.UpdatedAt); err != nil {
+		return false, err
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return false, err
+	}
+	return true, nil
 }
 func scanJobs(rows pgx.Rows) ([]Job, error) {
 	result := make([]Job, 0)
