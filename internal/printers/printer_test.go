@@ -2,6 +2,8 @@ package printers
 
 import (
 	"context"
+	"errors"
+	"sync"
 	"testing"
 	"time"
 )
@@ -51,6 +53,30 @@ func TestManagerRoutesTicketsToDedicatedPrinters(t *testing.T) {
 	waitForPrints(t, cashier, 1)
 }
 
+func TestManagerReconnectsOfflinePrinterWithoutQueuedTicket(t *testing.T) {
+	driver := &recoveringDriver{name: "kitchen", readyAfter: 2, status: StatusOffline}
+	manager := NewManager(ESCPosFormatter{}, 1)
+	manager.SetReconnectInterval(time.Millisecond)
+	if err := manager.Register(driver, "kitchen"); err != nil {
+		t.Fatal(err)
+	}
+	if err := manager.Start(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	defer manager.Close()
+
+	deadline := time.Now().Add(time.Second)
+	for driver.Health() != StatusReady && time.Now().Before(deadline) {
+		time.Sleep(time.Millisecond)
+	}
+	if driver.Health() != StatusReady {
+		t.Fatal("printer did not reconnect")
+	}
+	if driver.ConnectCount() < 2 {
+		t.Fatalf("connect attempts = %d, want at least 2", driver.ConnectCount())
+	}
+}
+
 func waitForPrints(t *testing.T, driver *MockDriver, count int) {
 	t.Helper()
 	deadline := time.Now().Add(time.Second)
@@ -67,4 +93,42 @@ func TestESCPosFormatterIncludesPrinterCommands(t *testing.T) {
 	if len(data) < 5 || data[0] != 0x1b || data[len(data)-3] != 0x1d {
 		t.Fatalf("unexpected ESC/POS payload: %v", data)
 	}
+}
+
+type recoveringDriver struct {
+	mu         sync.RWMutex
+	name       string
+	status     Status
+	connects   int
+	readyAfter int
+}
+
+func (driver *recoveringDriver) Name() string { return driver.name }
+func (driver *recoveringDriver) Connect() error {
+	driver.mu.Lock()
+	defer driver.mu.Unlock()
+	driver.connects++
+	if driver.connects < driver.readyAfter {
+		driver.status = StatusOffline
+		return errors.New("printer unavailable")
+	}
+	driver.status = StatusReady
+	return nil
+}
+func (driver *recoveringDriver) Disconnect() error {
+	driver.mu.Lock()
+	driver.status = StatusOffline
+	driver.mu.Unlock()
+	return nil
+}
+func (driver *recoveringDriver) Health() Status {
+	driver.mu.RLock()
+	defer driver.mu.RUnlock()
+	return driver.status
+}
+func (driver *recoveringDriver) Print([]byte) error { return nil }
+func (driver *recoveringDriver) ConnectCount() int {
+	driver.mu.RLock()
+	defer driver.mu.RUnlock()
+	return driver.connects
 }

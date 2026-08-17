@@ -117,6 +117,7 @@ func main() {
 	}
 	defer providers.DisconnectAll()
 	printerManager := printers.NewManager(printers.ESCPosFormatter{}, 3)
+	printerManager.SetReconnectInterval(cfg.Printers.ReconnectInterval)
 	var kitchenDriver printers.Driver = printers.NewMockDriver("kitchen")
 	if cfg.Printers.KitchenAddress != "" {
 		kitchenDriver = printers.NewTCPDriver("kitchen", cfg.Printers.KitchenAddress, cfg.Printers.ConnectTimeout)

@@ -27,9 +27,10 @@ type Config struct {
 
 // PrintersConfig holds optional physical network-printer settings.
 type PrintersConfig struct {
-	KitchenAddress string        `mapstructure:"PRINTER_KITCHEN_ADDRESS"`
-	CashierAddress string        `mapstructure:"PRINTER_CASHIER_ADDRESS"`
-	ConnectTimeout time.Duration `mapstructure:"PRINTER_CONNECT_TIMEOUT"`
+	KitchenAddress    string        `mapstructure:"PRINTER_KITCHEN_ADDRESS"`
+	CashierAddress    string        `mapstructure:"PRINTER_CASHIER_ADDRESS"`
+	ConnectTimeout    time.Duration `mapstructure:"PRINTER_CONNECT_TIMEOUT"`
+	ReconnectInterval time.Duration `mapstructure:"PRINTER_RECONNECT_INTERVAL"`
 }
 
 // IntegrationsConfig enables the generic signed webhook provider.
@@ -103,6 +104,7 @@ func Load() (*Config, error) {
 	v.SetDefault("DB_MIN_CONNS", 5)
 	v.SetDefault("MIGRATIONS_DIR", "migrations")
 	v.SetDefault("PRINTER_CONNECT_TIMEOUT", "3s")
+	v.SetDefault("PRINTER_RECONNECT_INTERVAL", "5s")
 	v.SetDefault("AUTH_REQUIRED", false)
 	v.SetDefault("LOG_LEVEL", "info")
 	v.SetDefault("LOG_PRETTY", false)

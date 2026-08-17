@@ -67,17 +67,18 @@ type managedPrinter struct {
 }
 
 type Manager struct {
-	mu         sync.RWMutex
-	printers   map[string]*managedPrinter
-	routes     map[string]string
-	history    map[string]Ticket
-	formatter  Formatter
-	retryLimit int
-	ctx        context.Context
-	cancel     context.CancelFunc
-	wg         sync.WaitGroup
-	started    bool
-	observers  []JobObserver
+	mu                sync.RWMutex
+	printers          map[string]*managedPrinter
+	routes            map[string]string
+	history           map[string]Ticket
+	formatter         Formatter
+	retryLimit        int
+	reconnectInterval time.Duration
+	ctx               context.Context
+	cancel            context.CancelFunc
+	wg                sync.WaitGroup
+	started           bool
+	observers         []JobObserver
 }
 
 func (m *Manager) SetObserver(observer JobObserver) {
@@ -104,7 +105,16 @@ func NewManager(formatter Formatter, retryLimit int) *Manager {
 	if retryLimit < 1 {
 		retryLimit = 1
 	}
-	return &Manager{printers: make(map[string]*managedPrinter), routes: make(map[string]string), history: make(map[string]Ticket), formatter: formatter, retryLimit: retryLimit}
+	return &Manager{printers: make(map[string]*managedPrinter), routes: make(map[string]string), history: make(map[string]Ticket), formatter: formatter, retryLimit: retryLimit, reconnectInterval: 5 * time.Second}
+}
+
+func (m *Manager) SetReconnectInterval(interval time.Duration) {
+	if interval <= 0 {
+		return
+	}
+	m.mu.Lock()
+	m.reconnectInterval = interval
+	m.mu.Unlock()
 }
 func (m *Manager) Register(driver Driver, destinations ...string) error {
 	m.mu.Lock()
@@ -127,17 +137,19 @@ func (m *Manager) Start(parent context.Context) error {
 	}
 	m.ctx, m.cancel = context.WithCancel(parent)
 	m.started = true
+	reconnectInterval := m.reconnectInterval
 	printers := make([]*managedPrinter, 0, len(m.printers))
 	for _, printer := range m.printers {
 		printers = append(printers, printer)
 	}
 	m.mu.Unlock()
 	for _, printer := range printers {
-		// An offline physical printer must not prevent restaurant operations
-		// from starting; its worker will reconnect before the next print.
+		// A failed initial connection does not prevent the manager from starting;
+		// the background health loop continues recovery attempts.
 		_ = printer.driver.Connect()
-		m.wg.Add(1)
+		m.wg.Add(2)
 		go m.worker(printer)
+		go m.reconnector(printer, reconnectInterval)
 	}
 	return nil
 }
@@ -195,6 +207,21 @@ func (m *Manager) worker(printer *managedPrinter) {
 				printer.failed.Add(1)
 				m.notifyFailed(current.ticket, m.retryLimit, err)
 				_ = printer.driver.Disconnect()
+			}
+		}
+	}
+}
+func (m *Manager) reconnector(printer *managedPrinter, interval time.Duration) {
+	defer m.wg.Done()
+	ticker := time.NewTicker(interval)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-m.ctx.Done():
+			return
+		case <-ticker.C:
+			if printer.driver.Health() != StatusReady {
+				_ = printer.driver.Connect()
 			}
 		}
 	}
