@@ -39,6 +39,11 @@ type Handoff struct {
 	UpdatedAt time.Time `json:"updated_at"`
 }
 
+type TaskSummary struct {
+	Completed int `json:"completed"`
+	Total     int `json:"total"`
+}
+
 type CreateMemberInput struct {
 	Name    string `json:"name"`
 	Role    string `json:"role"`
@@ -64,6 +69,7 @@ type Repository interface {
 	UpdateMemberHandoff(context.Context, string, string) (Member, error)
 	CreateTask(context.Context, Task) error
 	ListTasks(context.Context) ([]Task, error)
+	TaskSummary(context.Context) (TaskSummary, error)
 	CompleteTask(context.Context, string) (Task, error)
 	GetHandoff(context.Context) (Handoff, error)
 	SaveHandoff(context.Context, Handoff) error
@@ -108,6 +114,9 @@ func (s *Service) CreateTask(ctx context.Context, input CreateTaskInput) (Task, 
 	return task, s.repository.CreateTask(ctx, task)
 }
 func (s *Service) ListTasks(ctx context.Context) ([]Task, error) { return s.repository.ListTasks(ctx) }
+func (s *Service) TaskSummary(ctx context.Context) (TaskSummary, error) {
+	return s.repository.TaskSummary(ctx)
+}
 func (s *Service) CompleteTask(ctx context.Context, id string) (Task, error) {
 	return s.repository.CompleteTask(ctx, id)
 }
@@ -189,6 +198,17 @@ func (r *MemoryRepository) ListTasks(_ context.Context) ([]Task, error) {
 	r.mu.RUnlock()
 	sort.Slice(result, func(i, j int) bool { return result[i].CreatedAt.Before(result[j].CreatedAt) })
 	return result, nil
+}
+func (r *MemoryRepository) TaskSummary(_ context.Context) (TaskSummary, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	summary := TaskSummary{Total: len(r.tasks)}
+	for _, task := range r.tasks {
+		if task.Completed {
+			summary.Completed++
+		}
+	}
+	return summary, nil
 }
 func (r *MemoryRepository) CompleteTask(_ context.Context, id string) (Task, error) {
 	r.mu.Lock()
@@ -273,6 +293,11 @@ func (r *PostgresRepository) ListTasks(ctx context.Context) ([]Task, error) {
 		result = append(result, task)
 	}
 	return result, rows.Err()
+}
+func (r *PostgresRepository) TaskSummary(ctx context.Context) (TaskSummary, error) {
+	var summary TaskSummary
+	err := r.pool.QueryRow(ctx, `SELECT COUNT(*) FILTER (WHERE completed), COUNT(*) FROM shift_tasks`).Scan(&summary.Completed, &summary.Total)
+	return summary, err
 }
 func (r *PostgresRepository) CompleteTask(ctx context.Context, id string) (Task, error) {
 	var task Task

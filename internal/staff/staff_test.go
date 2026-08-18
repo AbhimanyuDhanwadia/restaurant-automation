@@ -22,6 +22,10 @@ func TestServiceManagesRosterTasksAndHandoff(t *testing.T) {
 	if _, err := service.CompleteTask(context.Background(), task.ID); err != nil {
 		t.Fatal(err)
 	}
+	summary, err := service.TaskSummary(context.Background())
+	if err != nil || summary.Completed != 1 || summary.Total != 1 {
+		t.Fatalf("summary = %+v, err = %v", summary, err)
+	}
 	if tasks, err := service.ListTasks(context.Background()); err != nil || len(tasks) != 0 {
 		t.Fatalf("tasks = %+v, err = %v", tasks, err)
 	}

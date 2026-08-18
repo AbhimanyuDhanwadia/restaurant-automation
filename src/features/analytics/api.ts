@@ -16,6 +16,11 @@ export interface DeliveryMetric extends Metric {
   active_orders: number;
 }
 
+export interface StaffMetric extends Metric {
+  completed_tasks: number;
+  total_tasks: number;
+}
+
 export interface AnalyticsReport {
   generated_at: string;
   orders: Metric;
@@ -25,7 +30,7 @@ export interface AnalyticsReport {
   delivery_time: DeliveryMetric;
   printer_availability: Metric;
   printer_utilization: Metric;
-  staff_productivity: Metric;
+  staff_productivity: StaffMetric;
   peak_hours: Array<{ hour: number; orders: number }>;
 }
 

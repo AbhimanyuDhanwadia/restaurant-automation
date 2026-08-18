@@ -135,11 +135,11 @@ func main() {
 		log.Fatal().Err(err).Msg("register cashier printer")
 	}
 	orderService := orders.NewService(orderRepository)
-	analyticsService := analytics.NewService(engine, printerManager, orderService)
-	intelligenceService := intelligence.NewService(engine, printerManager)
 	tableService := tables.NewService(tableRepository)
 	inventoryService := inventory.NewService(inventoryRepository)
 	staffService := staff.NewService(staffRepository)
+	analyticsService := analytics.NewService(engine, printerManager, orderService).WithStaff(staffService)
+	intelligenceService := intelligence.NewService(engine, printerManager)
 	alertService := alerts.NewService(alertRepository)
 	settingsService := settings.NewService(settingsRepository)
 	printQueueService := printqueue.NewService(printQueueRepository)

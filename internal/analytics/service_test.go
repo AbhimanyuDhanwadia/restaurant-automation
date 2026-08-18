@@ -8,6 +8,7 @@ import (
 	"github.com/restaurantautomation/api/internal/automation"
 	"github.com/restaurantautomation/api/internal/orders"
 	"github.com/restaurantautomation/api/internal/printers"
+	"github.com/restaurantautomation/api/internal/staff"
 )
 
 func TestOverviewAggregatesOrderAndPrinterState(t *testing.T) {
@@ -87,5 +88,30 @@ func TestOverviewAggregatesDeliveryTime(t *testing.T) {
 	report := NewService(engine, printerManager, orderService).Overview(context.Background())
 	if !report.DeliveryTime.Available || report.DeliveryTime.DeliveredOrders != 1 || report.DeliveryTime.ActiveOrders != 0 {
 		t.Fatalf("delivery = %+v", report.DeliveryTime)
+	}
+}
+
+func TestOverviewAggregatesStaffTaskCompletion(t *testing.T) {
+	engine := automation.NewEngine(1, 10, automation.RetryPolicy{MaxAttempts: 1})
+	printerManager := printers.NewManager(printers.ESCPosFormatter{}, 1)
+	staffService := staff.NewService(staff.NewMemoryRepository())
+	for index, title := range []string{"Open station", "Check stock", "Close station"} {
+		task, err := staffService.CreateTask(context.Background(), staff.CreateTaskInput{Title: title, Owner: "Maya"})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if index < 2 {
+			if _, err := staffService.CompleteTask(context.Background(), task.ID); err != nil {
+				t.Fatal(err)
+			}
+		}
+	}
+
+	report := NewService(engine, printerManager).WithStaff(staffService).Overview(context.Background())
+	if !report.StaffProductivity.Available || report.StaffProductivity.Value != 66.7 {
+		t.Fatalf("staff productivity = %+v", report.StaffProductivity)
+	}
+	if report.StaffProductivity.CompletedTasks != 2 || report.StaffProductivity.TotalTasks != 3 {
+		t.Fatalf("staff productivity counts = %+v", report.StaffProductivity)
 	}
 }

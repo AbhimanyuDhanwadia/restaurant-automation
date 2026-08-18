@@ -2,12 +2,14 @@ package analytics
 
 import (
 	"context"
+	"math"
 	"sort"
 	"time"
 
 	"github.com/restaurantautomation/api/internal/automation"
 	"github.com/restaurantautomation/api/internal/orders"
 	"github.com/restaurantautomation/api/internal/printers"
+	"github.com/restaurantautomation/api/internal/staff"
 )
 
 type Metric struct {
@@ -30,6 +32,16 @@ type DeliveryMetric struct {
 	ActiveOrders    int     `json:"active_orders"`
 }
 
+type StaffMetric struct {
+	Metric
+	CompletedTasks int `json:"completed_tasks"`
+	TotalTasks     int `json:"total_tasks"`
+}
+
+type StaffTaskSummaryReader interface {
+	TaskSummary(context.Context) (staff.TaskSummary, error)
+}
+
 type Hour struct {
 	Hour   int `json:"hour"`
 	Orders int `json:"orders"`
@@ -44,7 +56,7 @@ type Report struct {
 	DeliveryTime        DeliveryMetric `json:"delivery_time"`
 	PrinterAvailability Metric         `json:"printer_availability"`
 	PrinterUtilization  Metric         `json:"printer_utilization"`
-	StaffProductivity   Metric         `json:"staff_productivity"`
+	StaffProductivity   StaffMetric    `json:"staff_productivity"`
 	PeakHours           []Hour         `json:"peak_hours"`
 }
 
@@ -52,6 +64,7 @@ type Service struct {
 	engine   *automation.Engine
 	printers *printers.Manager
 	orders   *orders.Service
+	staff    StaffTaskSummaryReader
 }
 
 func NewService(engine *automation.Engine, printerManager *printers.Manager, orderServices ...*orders.Service) *Service {
@@ -62,9 +75,13 @@ func NewService(engine *automation.Engine, printerManager *printers.Manager, ord
 	return service
 }
 
-// Overview combines runtime automation and printer telemetry with durable order
-// totals and delivery timestamps. Staffing metrics remain unavailable until
-// their source records are introduced.
+func (s *Service) WithStaff(staffReader StaffTaskSummaryReader) *Service {
+	s.staff = staffReader
+	return s
+}
+
+// Overview combines runtime automation and printer telemetry with durable
+// order, delivery, and staff-task records.
 func (s *Service) Overview(ctx context.Context) Report {
 	events := s.engine.Events()
 	orders := make(map[string]struct{})
@@ -109,7 +126,7 @@ func (s *Service) Overview(ctx context.Context) Report {
 	durableOrders, durableOrdersAvailable := s.durableOrders(ctx)
 	sales, averageTicket := sales(durableOrders, durableOrdersAvailable)
 	deliveryTime := deliveryTime(durableOrders, durableOrdersAvailable)
-	return Report{GeneratedAt: time.Now().UTC(), Orders: Metric{Value: float64(len(orders)), Available: true}, KitchenCompletion: completion, PrinterAvailability: availability, PrinterUtilization: Metric{Value: float64(printed), Available: true}, Sales: sales, AverageTicket: averageTicket, DeliveryTime: deliveryTime, StaffProductivity: Metric{}, PeakHours: peakHours}
+	return Report{GeneratedAt: time.Now().UTC(), Orders: Metric{Value: float64(len(orders)), Available: true}, KitchenCompletion: completion, PrinterAvailability: availability, PrinterUtilization: Metric{Value: float64(printed), Available: true}, Sales: sales, AverageTicket: averageTicket, DeliveryTime: deliveryTime, StaffProductivity: s.staffProductivity(ctx), PeakHours: peakHours}
 }
 
 func (s *Service) durableOrders(ctx context.Context) ([]orders.Order, bool) {
@@ -121,6 +138,22 @@ func (s *Service) durableOrders(ctx context.Context) ([]orders.Order, bool) {
 		return nil, false
 	}
 	return allOrders, true
+}
+
+func (s *Service) staffProductivity(ctx context.Context) StaffMetric {
+	if s.staff == nil {
+		return StaffMetric{}
+	}
+	summary, err := s.staff.TaskSummary(ctx)
+	if err != nil {
+		return StaffMetric{}
+	}
+	metric := StaffMetric{CompletedTasks: summary.Completed, TotalTasks: summary.Total}
+	if summary.Total > 0 {
+		metric.Value = math.Round(float64(summary.Completed)/float64(summary.Total)*1000) / 10
+		metric.Available = true
+	}
+	return metric
 }
 
 func sales(allOrders []orders.Order, available bool) (MonetaryMetric, MonetaryMetric) {
