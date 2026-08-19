@@ -24,6 +24,7 @@ export interface StaffMetric extends Metric {
 export interface AnalyticsReport {
   generated_at: string;
   orders: Metric;
+  order_volume_source: "durable" | "runtime";
   sales: MonetaryMetric;
   average_ticket: MonetaryMetric;
   kitchen_completion: Metric;

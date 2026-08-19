@@ -74,6 +74,43 @@ func TestOverviewDoesNotCombineCurrencies(t *testing.T) {
 	}
 }
 
+func TestOverviewUsesDurableOrdersForVolumeAndPeakHours(t *testing.T) {
+	engine := automation.NewEngine(1, 10, automation.RetryPolicy{MaxAttempts: 1})
+	printerManager := printers.NewManager(printers.ESCPosFormatter{}, 1)
+	orderService := orders.NewService(orders.NewMemoryRepository())
+	for _, item := range []string{"Dosa", "Idli"} {
+		if _, err := orderService.Create(context.Background(), orders.CreateInput{Channel: "counter", Items: []orders.Item{{Name: item, Quantity: 1}}}); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	report := NewService(engine, printerManager, orderService).Overview(context.Background())
+	if report.OrderVolumeSource != "durable" || report.Orders.Value != 2 {
+		t.Fatalf("order volume = %+v, source = %q", report.Orders, report.OrderVolumeSource)
+	}
+	if len(report.PeakHours) != 1 || report.PeakHours[0].Orders != 2 {
+		t.Fatalf("peak hours = %+v", report.PeakHours)
+	}
+}
+
+func TestOverviewFallsBackToRuntimeOrderVolume(t *testing.T) {
+	engine := automation.NewEngine(1, 10, automation.RetryPolicy{MaxAttempts: 1})
+	engine.Start(context.Background())
+	defer engine.Close()
+	if err := engine.SubmitOrder(context.Background(), "ORD-RUNTIME"); err != nil {
+		t.Fatal(err)
+	}
+	deadline := time.Now().Add(time.Second)
+	for len(engine.Events()) < 5 && time.Now().Before(deadline) {
+		time.Sleep(time.Millisecond)
+	}
+
+	report := NewService(engine, printers.NewManager(printers.ESCPosFormatter{}, 1)).Overview(context.Background())
+	if report.OrderVolumeSource != "runtime" || report.Orders.Value != 1 {
+		t.Fatalf("order volume = %+v, source = %q", report.Orders, report.OrderVolumeSource)
+	}
+}
+
 func TestOverviewAggregatesDeliveryTime(t *testing.T) {
 	engine := automation.NewEngine(1, 10, automation.RetryPolicy{MaxAttempts: 1})
 	printerManager := printers.NewManager(printers.ESCPosFormatter{}, 1)

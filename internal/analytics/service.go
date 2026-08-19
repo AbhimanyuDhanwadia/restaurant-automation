@@ -50,6 +50,7 @@ type Hour struct {
 type Report struct {
 	GeneratedAt         time.Time      `json:"generated_at"`
 	Orders              Metric         `json:"orders"`
+	OrderVolumeSource   string         `json:"order_volume_source"`
 	Sales               MonetaryMetric `json:"sales"`
 	AverageTicket       MonetaryMetric `json:"average_ticket"`
 	KitchenCompletion   Metric         `json:"kitchen_completion"`
@@ -96,6 +97,17 @@ func (s *Service) Overview(ctx context.Context) Report {
 			queued[event.OrderID] = struct{}{}
 		}
 	}
+	durableOrders, durableOrdersAvailable := s.durableOrders(ctx)
+	orderCount := len(orders)
+	orderVolumeSource := "runtime"
+	if durableOrdersAvailable {
+		orderCount = len(durableOrders)
+		orderVolumeSource = "durable"
+		hours = make(map[int]int)
+		for _, order := range durableOrders {
+			hours[order.CreatedAt.Hour()]++
+		}
+	}
 	printerHealth := s.printers.Health()
 	ready := 0
 	printed := uint64(0)
@@ -123,10 +135,9 @@ func (s *Service) Overview(ctx context.Context) Report {
 		}
 		return peakHours[i].Orders > peakHours[j].Orders
 	})
-	durableOrders, durableOrdersAvailable := s.durableOrders(ctx)
 	sales, averageTicket := sales(durableOrders, durableOrdersAvailable)
 	deliveryTime := deliveryTime(durableOrders, durableOrdersAvailable)
-	return Report{GeneratedAt: time.Now().UTC(), Orders: Metric{Value: float64(len(orders)), Available: true}, KitchenCompletion: completion, PrinterAvailability: availability, PrinterUtilization: Metric{Value: float64(printed), Available: true}, Sales: sales, AverageTicket: averageTicket, DeliveryTime: deliveryTime, StaffProductivity: s.staffProductivity(ctx), PeakHours: peakHours}
+	return Report{GeneratedAt: time.Now().UTC(), Orders: Metric{Value: float64(orderCount), Available: true}, OrderVolumeSource: orderVolumeSource, KitchenCompletion: completion, PrinterAvailability: availability, PrinterUtilization: Metric{Value: float64(printed), Available: true}, Sales: sales, AverageTicket: averageTicket, DeliveryTime: deliveryTime, StaffProductivity: s.staffProductivity(ctx), PeakHours: peakHours}
 }
 
 func (s *Service) durableOrders(ctx context.Context) ([]orders.Order, bool) {
