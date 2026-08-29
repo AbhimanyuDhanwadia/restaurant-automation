@@ -21,13 +21,19 @@ export interface StaffMetric extends Metric {
   total_tasks: number;
 }
 
+export interface KitchenMetric extends Metric {
+  completed_orders: number;
+  eligible_orders: number;
+}
+
 export interface AnalyticsReport {
   generated_at: string;
   orders: Metric;
   order_volume_source: "durable" | "runtime";
   sales: MonetaryMetric;
   average_ticket: MonetaryMetric;
-  kitchen_completion: Metric;
+  kitchen_completion: KitchenMetric;
+  kitchen_completion_source: "durable" | "runtime";
   delivery_time: DeliveryMetric;
   printer_availability: Metric;
   printer_utilization: Metric;

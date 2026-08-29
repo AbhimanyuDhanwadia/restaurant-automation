@@ -43,7 +43,7 @@ func TestOverviewAggregatesOrderAndPrinterState(t *testing.T) {
 	if !report.PrinterAvailability.Available || report.PrinterAvailability.Value != 100 {
 		t.Fatalf("availability = %+v", report.PrinterAvailability)
 	}
-	if !report.KitchenCompletion.Available || report.KitchenCompletion.Value != 100 {
+	if !report.KitchenCompletion.Available || report.KitchenCompletion.Value != 0 || report.KitchenSource != "durable" {
 		t.Fatalf("completion = %+v", report.KitchenCompletion)
 	}
 	if !report.Sales.Available || report.Sales.Value != 125.5 || report.Sales.Currency != "INR" {
@@ -108,6 +108,33 @@ func TestOverviewFallsBackToRuntimeOrderVolume(t *testing.T) {
 	report := NewService(engine, printers.NewManager(printers.ESCPosFormatter{}, 1)).Overview(context.Background())
 	if report.OrderVolumeSource != "runtime" || report.Orders.Value != 1 {
 		t.Fatalf("order volume = %+v, source = %q", report.Orders, report.OrderVolumeSource)
+	}
+	if report.KitchenSource != "runtime" || report.KitchenCompletion.Value != 100 {
+		t.Fatalf("kitchen completion = %+v, source = %q", report.KitchenCompletion, report.KitchenSource)
+	}
+}
+
+func TestOverviewUsesDurableKitchenCompletion(t *testing.T) {
+	engine := automation.NewEngine(1, 10, automation.RetryPolicy{MaxAttempts: 1})
+	printerManager := printers.NewManager(printers.ESCPosFormatter{}, 1)
+	orderService := orders.NewService(orders.NewMemoryRepository())
+	statuses := []string{"ready", "delivered", "preparing", "cancelled"}
+	for index, status := range statuses {
+		order, err := orderService.Create(context.Background(), orders.CreateInput{Channel: "counter", Items: []orders.Item{{Name: "Item", Quantity: index + 1}}})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := orderService.UpdateStatus(context.Background(), order.ID, status); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	report := NewService(engine, printerManager, orderService).Overview(context.Background())
+	if report.KitchenSource != "durable" || !report.KitchenCompletion.Available || report.KitchenCompletion.Value != 66.7 {
+		t.Fatalf("kitchen completion = %+v, source = %q", report.KitchenCompletion, report.KitchenSource)
+	}
+	if report.KitchenCompletion.CompletedOrders != 2 || report.KitchenCompletion.EligibleOrders != 3 {
+		t.Fatalf("kitchen completion counts = %+v", report.KitchenCompletion)
 	}
 }
 

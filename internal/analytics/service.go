@@ -38,6 +38,12 @@ type StaffMetric struct {
 	TotalTasks     int `json:"total_tasks"`
 }
 
+type KitchenMetric struct {
+	Metric
+	CompletedOrders int `json:"completed_orders"`
+	EligibleOrders  int `json:"eligible_orders"`
+}
+
 type StaffTaskSummaryReader interface {
 	TaskSummary(context.Context) (staff.TaskSummary, error)
 }
@@ -53,7 +59,8 @@ type Report struct {
 	OrderVolumeSource   string         `json:"order_volume_source"`
 	Sales               MonetaryMetric `json:"sales"`
 	AverageTicket       MonetaryMetric `json:"average_ticket"`
-	KitchenCompletion   Metric         `json:"kitchen_completion"`
+	KitchenCompletion   KitchenMetric  `json:"kitchen_completion"`
+	KitchenSource       string         `json:"kitchen_completion_source"`
 	DeliveryTime        DeliveryMetric `json:"delivery_time"`
 	PrinterAvailability Metric         `json:"printer_availability"`
 	PrinterUtilization  Metric         `json:"printer_utilization"`
@@ -121,10 +128,7 @@ func (s *Service) Overview(ctx context.Context) Report {
 	if len(printerHealth) > 0 {
 		availability = Metric{Value: float64(ready) / float64(len(printerHealth)) * 100, Available: true}
 	}
-	completion := Metric{}
-	if len(orders) > 0 {
-		completion = Metric{Value: float64(len(queued)) / float64(len(orders)) * 100, Available: true}
-	}
+	completion, kitchenSource := kitchenCompletion(orders, queued, durableOrders, durableOrdersAvailable)
 	peakHours := make([]Hour, 0, len(hours))
 	for hour, count := range hours {
 		peakHours = append(peakHours, Hour{Hour: hour, Orders: count})
@@ -137,7 +141,7 @@ func (s *Service) Overview(ctx context.Context) Report {
 	})
 	sales, averageTicket := sales(durableOrders, durableOrdersAvailable)
 	deliveryTime := deliveryTime(durableOrders, durableOrdersAvailable)
-	return Report{GeneratedAt: time.Now().UTC(), Orders: Metric{Value: float64(orderCount), Available: true}, OrderVolumeSource: orderVolumeSource, KitchenCompletion: completion, PrinterAvailability: availability, PrinterUtilization: Metric{Value: float64(printed), Available: true}, Sales: sales, AverageTicket: averageTicket, DeliveryTime: deliveryTime, StaffProductivity: s.staffProductivity(ctx), PeakHours: peakHours}
+	return Report{GeneratedAt: time.Now().UTC(), Orders: Metric{Value: float64(orderCount), Available: true}, OrderVolumeSource: orderVolumeSource, KitchenCompletion: completion, KitchenSource: kitchenSource, PrinterAvailability: availability, PrinterUtilization: Metric{Value: float64(printed), Available: true}, Sales: sales, AverageTicket: averageTicket, DeliveryTime: deliveryTime, StaffProductivity: s.staffProductivity(ctx), PeakHours: peakHours}
 }
 
 func (s *Service) durableOrders(ctx context.Context) ([]orders.Order, bool) {
@@ -165,6 +169,31 @@ func (s *Service) staffProductivity(ctx context.Context) StaffMetric {
 		metric.Available = true
 	}
 	return metric
+}
+
+func kitchenCompletion(runtimeOrders, runtimeQueued map[string]struct{}, durableOrders []orders.Order, durableAvailable bool) (KitchenMetric, string) {
+	metric := KitchenMetric{}
+	source := "runtime"
+	if durableAvailable {
+		source = "durable"
+		for _, order := range durableOrders {
+			if order.Status == "cancelled" {
+				continue
+			}
+			metric.EligibleOrders++
+			if order.Status == "ready" || order.Status == "delivered" {
+				metric.CompletedOrders++
+			}
+		}
+	} else {
+		metric.EligibleOrders = len(runtimeOrders)
+		metric.CompletedOrders = len(runtimeQueued)
+	}
+	if metric.EligibleOrders > 0 {
+		metric.Value = math.Round(float64(metric.CompletedOrders)/float64(metric.EligibleOrders)*1000) / 10
+		metric.Available = true
+	}
+	return metric, source
 }
 
 func sales(allOrders []orders.Order, available bool) (MonetaryMetric, MonetaryMetric) {

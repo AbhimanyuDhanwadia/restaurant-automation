@@ -32,6 +32,7 @@ export function AnalyticsPage() {
   );
   const highestVolume = Math.max(...peakHours.map((entry) => entry.orders), 1);
   const orderVolumeLabel = report ? (report.order_volume_source === "durable" ? "Durable order records" : "Current runtime events") : "Order source unavailable";
+  const kitchenCompletionLabel = report ? (report.kitchen_completion_source === "durable" ? `${report.kitchen_completion.completed_orders} of ${report.kitchen_completion.eligible_orders} eligible orders` : "Automation queue progression") : "Kitchen source unavailable";
 
   return (
     <section className="analytics-workspace">
@@ -53,7 +54,7 @@ export function AnalyticsPage() {
         <article className="stat-card"><ReceiptText size={22} aria-hidden="true" /><div><span>Orders</span><strong>{metricValue(report?.orders)}</strong><small>{orderVolumeLabel}</small></div></article>
         <article className="stat-card"><BarChart3 size={22} aria-hidden="true" /><div><span>Sales</span><strong>{moneyValue(report?.sales)}</strong><small>{report?.sales.available ? `${report.sales.included_orders} totals recorded` : "Order totals required"}</small></div></article>
         <article className="stat-card"><ReceiptText size={22} aria-hidden="true" /><div><span>Printer availability</span><strong>{metricValue(report?.printer_availability, "%")}</strong><small>Registered printers</small></div></article>
-        <article className="stat-card"><Clock3 size={22} aria-hidden="true" /><div><span>Kitchen completion</span><strong>{metricValue(report?.kitchen_completion, "%")}</strong><small>Orders queued</small></div></article>
+        <article className="stat-card"><Clock3 size={22} aria-hidden="true" /><div><span>Kitchen completion</span><strong>{metricValue(report?.kitchen_completion, "%")}</strong><small>{kitchenCompletionLabel}</small></div></article>
       </section>
 
       <div className="analytics-grid">
