@@ -3,6 +3,7 @@ package printers
 import (
 	"context"
 	"errors"
+	"math"
 	"sort"
 	"sync"
 	"sync/atomic"
@@ -44,11 +45,14 @@ type Driver interface {
 }
 
 type PrinterHealth struct {
-	Name       string `json:"name"`
-	Status     Status `json:"status"`
-	QueueDepth int    `json:"queue_depth"`
-	Printed    uint64 `json:"printed"`
-	Failed     uint64 `json:"failed"`
+	Name                 string  `json:"name"`
+	Status               Status  `json:"status"`
+	QueueDepth           int     `json:"queue_depth"`
+	Printed              uint64  `json:"printed"`
+	Failed               uint64  `json:"failed"`
+	BusyMillis           uint64  `json:"busy_ms"`
+	Utilization          float64 `json:"utilization"`
+	UtilizationAvailable bool    `json:"utilization_available"`
 }
 
 var ErrPrinterExists = errors.New("printer is already registered")
@@ -64,6 +68,7 @@ type managedPrinter struct {
 	queue   chan job
 	printed atomic.Uint64
 	failed  atomic.Uint64
+	busy    atomic.Uint64
 }
 
 type Manager struct {
@@ -78,6 +83,7 @@ type Manager struct {
 	cancel            context.CancelFunc
 	wg                sync.WaitGroup
 	started           bool
+	startedAt         time.Time
 	observers         []JobObserver
 }
 
@@ -137,6 +143,7 @@ func (m *Manager) Start(parent context.Context) error {
 	}
 	m.ctx, m.cancel = context.WithCancel(parent)
 	m.started = true
+	m.startedAt = time.Now()
 	reconnectInterval := m.reconnectInterval
 	printers := make([]*managedPrinter, 0, len(m.printers))
 	for _, printer := range m.printers {
@@ -188,6 +195,7 @@ func (m *Manager) worker(printer *managedPrinter) {
 		case <-m.ctx.Done():
 			return
 		case current := <-printer.queue:
+			started := time.Now()
 			data := m.formatter.Format(current.ticket)
 			var err error
 			for attempt := 1; attempt <= m.retryLimit; attempt++ {
@@ -208,6 +216,7 @@ func (m *Manager) worker(printer *managedPrinter) {
 				m.notifyFailed(current.ticket, m.retryLimit, err)
 				_ = printer.driver.Disconnect()
 			}
+			printer.busy.Add(uint64(time.Since(started)))
 		}
 	}
 }
@@ -253,9 +262,19 @@ func (m *Manager) notifyFailed(ticket Ticket, attempt int, err error) {
 func (m *Manager) Health() []PrinterHealth {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
+	uptime := time.Duration(0)
+	if m.started {
+		uptime = time.Since(m.startedAt)
+	}
 	result := make([]PrinterHealth, 0, len(m.printers))
 	for name, printer := range m.printers {
-		result = append(result, PrinterHealth{Name: name, Status: printer.driver.Health(), QueueDepth: len(printer.queue), Printed: printer.printed.Load(), Failed: printer.failed.Load()})
+		busy := time.Duration(printer.busy.Load())
+		health := PrinterHealth{Name: name, Status: printer.driver.Health(), QueueDepth: len(printer.queue), Printed: printer.printed.Load(), Failed: printer.failed.Load(), BusyMillis: uint64(busy / time.Millisecond)}
+		if uptime > 0 {
+			health.Utilization = math.Round(math.Min(100, float64(busy)/float64(uptime)*100)*10) / 10
+			health.UtilizationAvailable = true
+		}
+		result = append(result, health)
 	}
 	sort.Slice(result, func(i, j int) bool { return result[i].Name < result[j].Name })
 	return result

@@ -55,7 +55,7 @@ export function KitchenPerformancePage() {
       <article className="stat-card"><ChefHat size={22} aria-hidden="true" /><div><span>Kitchen backlog</span><strong>{performanceQuery.data ? actionableOrders.length : "Unavailable"}</strong><small>Received or preparing</small></div></article>
       <article className="stat-card"><CheckCircle2 size={22} aria-hidden="true" /><div><span>Ready now</span><strong>{performanceQuery.data ? readyOrders : "Unavailable"}</strong><small>Awaiting pickup or delivery</small></div></article>
       <article className="stat-card"><Clock3 size={22} aria-hidden="true" /><div><span>Order completion</span><strong>{report?.kitchen_completion.available ? `${report.kitchen_completion.value.toFixed(0)}%` : "Unavailable"}</strong><small>{report?.kitchen_completion.available ? `${report.kitchen_completion.completed_orders} of ${report.kitchen_completion.eligible_orders} eligible orders` : "Ready or delivered orders"}</small></div></article>
-      <article className="stat-card"><Printer size={22} aria-hidden="true" /><div><span>Printer tickets</span><strong>{report?.printer_utilization.available ? report.printer_utilization.value : "Unavailable"}</strong><small>Since API startup</small></div></article>
+      <article className="stat-card"><Printer size={22} aria-hidden="true" /><div><span>Printer utilization</span><strong>{report?.printer_utilization.available ? `${report.printer_utilization.value.toFixed(1)}%` : "Unavailable"}</strong><small>{report?.printer_utilization.available ? `${report.printer_utilization.printed} tickets printed` : "Runtime telemetry required"}</small></div></article>
     </section>
 
     <div className="kitchen-performance-grid">

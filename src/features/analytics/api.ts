@@ -26,6 +26,12 @@ export interface KitchenMetric extends Metric {
   eligible_orders: number;
 }
 
+export interface PrinterMetric extends Metric {
+  printed: number;
+  failed: number;
+  busy_ms: number;
+}
+
 export interface AnalyticsReport {
   generated_at: string;
   orders: Metric;
@@ -36,7 +42,7 @@ export interface AnalyticsReport {
   kitchen_completion_source: "durable" | "runtime";
   delivery_time: DeliveryMetric;
   printer_availability: Metric;
-  printer_utilization: Metric;
+  printer_utilization: PrinterMetric;
   staff_productivity: StaffMetric;
   peak_hours: Array<{ hour: number; orders: number }>;
 }

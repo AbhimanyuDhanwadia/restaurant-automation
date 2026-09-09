@@ -77,6 +77,36 @@ func TestManagerReconnectsOfflinePrinterWithoutQueuedTicket(t *testing.T) {
 	}
 }
 
+func TestManagerTracksPrinterBusyTime(t *testing.T) {
+	driver := &delayedDriver{MockDriver: NewMockDriver("kitchen"), delay: 20 * time.Millisecond}
+	manager := NewManager(ESCPosFormatter{}, 1)
+	if err := manager.Register(driver, "kitchen"); err != nil {
+		t.Fatal(err)
+	}
+	if err := manager.Start(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	defer manager.Close()
+	if err := manager.Print(context.Background(), Ticket{OrderID: "ORD-UTIL", Destination: "kitchen", Lines: []Line{{Text: "Dosa", Quantity: 1}}}); err != nil {
+		t.Fatal(err)
+	}
+	deadline := time.Now().Add(time.Second)
+	var health []PrinterHealth
+	for time.Now().Before(deadline) {
+		health = manager.Health()
+		if len(health) == 1 && health[0].BusyMillis >= 15 {
+			break
+		}
+		time.Sleep(time.Millisecond)
+	}
+	if len(health) != 1 || !health[0].UtilizationAvailable || health[0].Utilization <= 0 || health[0].Utilization > 100 {
+		t.Fatalf("health = %+v", health)
+	}
+	if health[0].BusyMillis < 15 {
+		t.Fatalf("busy milliseconds = %d, want at least 15", health[0].BusyMillis)
+	}
+}
+
 func waitForPrints(t *testing.T, driver *MockDriver, count int) {
 	t.Helper()
 	deadline := time.Now().Add(time.Second)
@@ -101,6 +131,16 @@ type recoveringDriver struct {
 	status     Status
 	connects   int
 	readyAfter int
+}
+
+type delayedDriver struct {
+	*MockDriver
+	delay time.Duration
+}
+
+func (driver *delayedDriver) Print(data []byte) error {
+	time.Sleep(driver.delay)
+	return driver.MockDriver.Print(data)
 }
 
 func (driver *recoveringDriver) Name() string { return driver.name }

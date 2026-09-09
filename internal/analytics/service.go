@@ -44,6 +44,13 @@ type KitchenMetric struct {
 	EligibleOrders  int `json:"eligible_orders"`
 }
 
+type PrinterMetric struct {
+	Metric
+	Printed    uint64 `json:"printed"`
+	Failed     uint64 `json:"failed"`
+	BusyMillis uint64 `json:"busy_ms"`
+}
+
 type StaffTaskSummaryReader interface {
 	TaskSummary(context.Context) (staff.TaskSummary, error)
 }
@@ -63,7 +70,7 @@ type Report struct {
 	KitchenSource       string         `json:"kitchen_completion_source"`
 	DeliveryTime        DeliveryMetric `json:"delivery_time"`
 	PrinterAvailability Metric         `json:"printer_availability"`
-	PrinterUtilization  Metric         `json:"printer_utilization"`
+	PrinterUtilization  PrinterMetric  `json:"printer_utilization"`
 	StaffProductivity   StaffMetric    `json:"staff_productivity"`
 	PeakHours           []Hour         `json:"peak_hours"`
 }
@@ -117,12 +124,23 @@ func (s *Service) Overview(ctx context.Context) Report {
 	}
 	printerHealth := s.printers.Health()
 	ready := 0
-	printed := uint64(0)
+	printerUtilization := PrinterMetric{}
+	utilizationSamples := 0
 	for _, printer := range printerHealth {
 		if printer.Status == printers.StatusReady {
 			ready++
 		}
-		printed += printer.Printed
+		printerUtilization.Printed += printer.Printed
+		printerUtilization.Failed += printer.Failed
+		printerUtilization.BusyMillis += printer.BusyMillis
+		if printer.UtilizationAvailable {
+			printerUtilization.Value += printer.Utilization
+			utilizationSamples++
+		}
+	}
+	if utilizationSamples > 0 {
+		printerUtilization.Value = math.Round(printerUtilization.Value/float64(utilizationSamples)*10) / 10
+		printerUtilization.Available = true
 	}
 	availability := Metric{}
 	if len(printerHealth) > 0 {
@@ -141,7 +159,7 @@ func (s *Service) Overview(ctx context.Context) Report {
 	})
 	sales, averageTicket := sales(durableOrders, durableOrdersAvailable)
 	deliveryTime := deliveryTime(durableOrders, durableOrdersAvailable)
-	return Report{GeneratedAt: time.Now().UTC(), Orders: Metric{Value: float64(orderCount), Available: true}, OrderVolumeSource: orderVolumeSource, KitchenCompletion: completion, KitchenSource: kitchenSource, PrinterAvailability: availability, PrinterUtilization: Metric{Value: float64(printed), Available: true}, Sales: sales, AverageTicket: averageTicket, DeliveryTime: deliveryTime, StaffProductivity: s.staffProductivity(ctx), PeakHours: peakHours}
+	return Report{GeneratedAt: time.Now().UTC(), Orders: Metric{Value: float64(orderCount), Available: true}, OrderVolumeSource: orderVolumeSource, KitchenCompletion: completion, KitchenSource: kitchenSource, PrinterAvailability: availability, PrinterUtilization: printerUtilization, Sales: sales, AverageTicket: averageTicket, DeliveryTime: deliveryTime, StaffProductivity: s.staffProductivity(ctx), PeakHours: peakHours}
 }
 
 func (s *Service) durableOrders(ctx context.Context) ([]orders.Order, bool) {

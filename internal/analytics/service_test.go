@@ -54,6 +54,34 @@ func TestOverviewAggregatesOrderAndPrinterState(t *testing.T) {
 	}
 }
 
+func TestOverviewAggregatesPrinterUtilization(t *testing.T) {
+	engine := automation.NewEngine(1, 10, automation.RetryPolicy{MaxAttempts: 1})
+	printerManager := printers.NewManager(printers.ESCPosFormatter{}, 1)
+	driver := printers.NewMockDriver("kitchen")
+	if err := printerManager.Register(driver, "kitchen"); err != nil {
+		t.Fatal(err)
+	}
+	if err := printerManager.Start(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	defer printerManager.Close()
+	if err := printerManager.Print(context.Background(), printers.Ticket{OrderID: "ORD-PRINT", Destination: "kitchen", Lines: []printers.Line{{Text: "Ticket", Quantity: 1}}}); err != nil {
+		t.Fatal(err)
+	}
+	deadline := time.Now().Add(time.Second)
+	var report Report
+	for time.Now().Before(deadline) {
+		report = NewService(engine, printerManager).Overview(context.Background())
+		if report.PrinterUtilization.Printed == 1 {
+			break
+		}
+		time.Sleep(time.Millisecond)
+	}
+	if !report.PrinterUtilization.Available || report.PrinterUtilization.Printed != 1 || report.PrinterUtilization.Failed != 0 {
+		t.Fatalf("printer utilization = %+v", report.PrinterUtilization)
+	}
+}
+
 func TestOverviewDoesNotCombineCurrencies(t *testing.T) {
 	engine := automation.NewEngine(1, 10, automation.RetryPolicy{MaxAttempts: 1})
 	printerManager := printers.NewManager(printers.ESCPosFormatter{}, 1)
